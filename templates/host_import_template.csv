@@ -1,0 +1,4 @@
+name,ip,port,os,description,tags,auth_type,username,password
+Web服务器-01,192.168.200.182,22,Ubuntu 20.04,生产环境Web服务器,web;production,password,root,your_password
+数据库服务器-01,192.168.200.128,22,CentOS 8,MySQL主数据库,database;mysql,password,mysql,your_password
+应用服务器-01,192.168.1.102,2222,Ubuntu 18.04,开发环境应用服务器,app;development,password,app,your_password

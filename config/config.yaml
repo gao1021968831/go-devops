@@ -1,0 +1,28 @@
+# DevOps管理平台配置文件
+
+# 应用配置
+app:
+  name: "DevOps管理平台"
+  version: "1.0.0"
+  environment: "development"
+  port: 8080
+
+# 数据库配置
+database:
+  url: "devops.db"
+
+# JWT配置
+jwt:
+  secret: "your-secret-key-change-in-production"
+  expire_hours: 24
+
+# 日志配置
+logging:
+  level: "info"
+  to_file: true
+  file_path: "logs/"
+
+# 定时任务配置
+scheduler:
+  enabled: true
+  host_check_interval: "5m"
