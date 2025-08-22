@@ -75,10 +75,15 @@ func JWTAuth() gin.HandlerFunc {
 		}
 
 		tokenString := strings.Replace(authHeader, "Bearer ", "", 1)
-		cfg := config.Load()
+		cfg, err := config.Load()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "配置加载失败"})
+			c.Abort()
+			return
+		}
 
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			return []byte(cfg.JWTSecret), nil
+			return []byte(cfg.JWT.Secret), nil
 		})
 
 		if err != nil || !token.Valid {

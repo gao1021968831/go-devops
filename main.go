@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -18,21 +19,24 @@ import (
 
 func main() {
 	// 初始化配置
-	cfg := config.Load()
+	cfg, err := config.Load()
+	if err != nil {
+		logger.Fatal("配置加载失败:", err)
+	}
 
 	// 初始化日志系统
 	logger.Init()
 	logger.Info("应用程序启动")
 
 	// 初始化数据库
-	db, err := database.Init(cfg.DatabaseURL)
+	db, err := database.Init(cfg.Database.URL)
 	if err != nil {
 		logger.Fatal("数据库初始化失败:", err)
 	}
 	logger.Info("数据库初始化成功")
 
 	// 设置Gin模式
-	if cfg.Environment == "production" {
+	if cfg.App.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	} else {
 		gin.SetMode(gin.DebugMode)
@@ -70,6 +74,6 @@ func main() {
 	}()
 
 	// 启动服务器
-	logger.Infof("服务器启动在端口 %s", cfg.Port)
-	logger.Fatal(http.ListenAndServe(":"+cfg.Port, r))
+	logger.Infof("服务器启动在端口 %d", cfg.App.Port)
+	logger.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", cfg.App.Port), r))
 }

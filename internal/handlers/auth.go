@@ -309,15 +309,18 @@ func (h *AuthHandler) GetUserStats(c *gin.Context) {
 
 // 生成JWT令牌
 func (h *AuthHandler) generateToken(user *models.User) (string, error) {
-	cfg := config.Load()
+	cfg, err := config.Load()
+	if err != nil {
+		return "", err
+	}
 	
 	claims := jwt.MapClaims{
 		"user_id":  user.ID,
 		"username": user.Username,
 		"role":     user.Role,
-		"exp":      time.Now().Add(time.Hour * 24).Unix(),
+		"exp":      time.Now().Add(time.Hour * time.Duration(cfg.JWT.ExpireHours)).Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(cfg.JWTSecret))
+	return token.SignedString([]byte(cfg.JWT.Secret))
 }
