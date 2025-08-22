@@ -36,12 +36,15 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import ScriptManager from '@/components/ScriptManager.vue'
 import JobManager from '@/components/JobManager.vue'
 import QuickExecute from '@/components/QuickExecute.vue'
 import { VideoPlay } from '@element-plus/icons-vue'
+
+const route = useRoute()
 
 // 响应式数据
 const activeTab = ref('scripts')
@@ -72,6 +75,18 @@ const handleQuickExecuted = (executions) => {
     jobManagerRef.value.refreshExecutions()
   }
 }
+
+// 处理路由参数，检查是否需要自动打开快速执行对话框
+onMounted(() => {
+  if (route.query.action === 'quick-execute' && route.query.prefill) {
+    try {
+      quickExecutePrefillData.value = JSON.parse(route.query.prefill)
+      showQuickExecute.value = true
+    } catch (error) {
+      console.error('解析预填充数据失败:', error)
+    }
+  }
+})
 </script>
 
 <style scoped>

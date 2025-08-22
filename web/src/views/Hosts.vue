@@ -951,7 +951,43 @@ const deleteHost = async (host) => {
   } catch (error) {
     if (error !== 'cancel') {
       console.error('删除主机失败:', error)
-      ElMessage.error(`删除主机失败: ${error.response?.data?.error || error.message}`)
+      
+      // 处理不同类型的错误响应
+      if (error.response?.status === 409) {
+        // 冲突错误，主机有关联数据
+        const errorData = error.response.data
+        
+        if (errorData.topology) {
+          // 主机在拓扑中有关联
+          ElMessageBox.alert(
+            `${errorData.message}\n\n业务线：${errorData.topology.business}\n环境：${errorData.topology.environment}\n集群：${errorData.topology.cluster}\n\n${errorData.suggestion}`,
+            '无法删除主机',
+            {
+              confirmButtonText: '我知道了',
+              type: 'warning',
+              dangerouslyUseHTMLString: false
+            }
+          )
+        } else {
+          // 其他关联数据错误
+          ElMessageBox.alert(
+            `${errorData.message}\n\n${errorData.suggestion || ''}`,
+            errorData.error || '删除失败',
+            {
+              confirmButtonText: '我知道了',
+              type: 'warning',
+              dangerouslyUseHTMLString: false
+            }
+          )
+        }
+      } else if (error.response?.status === 404) {
+        ElMessage.error('主机不存在或已被删除')
+        loadHosts() // 刷新列表
+      } else {
+        // 其他错误
+        const errorMsg = error.response?.data?.error || error.response?.data?.message || error.message
+        ElMessage.error(`删除主机失败: ${errorMsg}`)
+      }
     }
   }
 }

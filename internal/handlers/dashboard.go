@@ -10,14 +10,19 @@ import (
 
 	"go-devops/internal/logger"
 	"go-devops/internal/models"
+	"go-devops/internal/services"
 )
 
 type DashboardHandler struct {
-	db *gorm.DB
+	db              *gorm.DB
+	activityService *services.ActivityService
 }
 
 func NewDashboardHandler(db *gorm.DB) *DashboardHandler {
-	return &DashboardHandler{db: db}
+	return &DashboardHandler{
+		db:              db,
+		activityService: services.NewActivityService(db),
+	}
 }
 
 // 活动记录结构
@@ -28,6 +33,24 @@ type Activity struct {
 	Timestamp time.Time `json:"timestamp"`
 	UserID    uint      `json:"user_id,omitempty"`
 	Username  string    `json:"username,omitempty"`
+	Resource  string    `json:"resource,omitempty"`
+}
+
+// 分页响应结构
+type PaginatedResponse struct {
+	Data       interface{} `json:"data"`
+	Total      int64       `json:"total"`
+	Page       int         `json:"page"`
+	Size       int         `json:"size"`
+	TotalPages int64       `json:"total_pages"`
+}
+
+// 分页活动响应结构
+type ActivitiesResponse struct {
+	Items []Activity `json:"items"`
+	Total int64      `json:"total"`
+	Page  int        `json:"page"`
+	Size  int        `json:"size"`
 }
 
 // 作业趋势数据结构
@@ -45,17 +68,10 @@ func (h *DashboardHandler) GetRecentActivities(c *gin.Context) {
 		limit = 10
 	}
 
-	var activities []Activity
-
-	// 从作业执行记录获取活动
-	var executions []models.JobExecution
-	err = h.db.Preload("Job").Preload("Host").
-		Order("created_at desc").
-		Limit(limit).
-		Find(&executions).Error
-
+	// 使用新的活动记录系统
+	userActivities, err := h.activityService.GetRecentActivities(limit)
 	if err != nil {
-		logger.Errorf("获取作业执行记录失败: %v", err)
+		logger.Errorf("获取最近活动失败: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
 			"message": "获取活动记录失败",
@@ -63,31 +79,26 @@ func (h *DashboardHandler) GetRecentActivities(c *gin.Context) {
 		return
 	}
 
-	// 转换为活动记录
-	for _, exec := range executions {
+	// 转换为前端需要的格式
+	var activities []Activity
+	for _, ua := range userActivities {
 		var activityType string
-		var message string
-
-		switch exec.Status {
-		case "completed":
+		switch ua.Status {
+		case "success":
 			activityType = "success"
-			message = "作业 \"" + exec.Job.Name + "\" 在主机 " + exec.Host.Name + " 上执行成功"
 		case "failed":
 			activityType = "error"
-			message = "作业 \"" + exec.Job.Name + "\" 在主机 " + exec.Host.Name + " 上执行失败"
-		case "running":
-			activityType = "info"
-			message = "作业 \"" + exec.Job.Name + "\" 正在主机 " + exec.Host.Name + " 上执行"
 		default:
 			activityType = "info"
-			message = "作业 \"" + exec.Job.Name + "\" 状态变更为 " + exec.Status
 		}
 
 		activity := Activity{
-			ID:        exec.ID,
-			Message:   message,
+			ID:        ua.ID,
+			Message:   ua.Description,
 			Type:      activityType,
-			Timestamp: exec.CreatedAt,
+			Timestamp: ua.CreatedAt,
+			UserID:    ua.UserID,
+			Username:  ua.User.Username,
 		}
 
 		activities = append(activities, activity)
@@ -190,4 +201,90 @@ func (h *DashboardHandler) GetHostStatusDistribution(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, results)
+}
+
+// 获取全部活动（支持分页和筛选）
+func (h *DashboardHandler) GetAllActivities(c *gin.Context) {
+	// 解析查询参数
+	pageStr := c.DefaultQuery("page", "1")
+	sizeStr := c.DefaultQuery("size", "20")
+	activityType := c.Query("type")
+	startDate := c.Query("start_date")
+	endDate := c.Query("end_date")
+	keyword := c.Query("keyword")
+
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page <= 0 {
+		page = 1
+	}
+
+	size, err := strconv.Atoi(sizeStr)
+	if err != nil || size <= 0 || size > 100 {
+		size = 20
+	}
+
+	// 转换活动类型筛选
+	var status string
+	switch activityType {
+	case "success":
+		status = "success"
+	case "error":
+		status = "failed"
+	case "info":
+		// 不设置状态筛选，显示所有
+	}
+
+	// 使用新的活动记录系统
+	userActivities, total, err := h.activityService.GetActivities(
+		page, size, nil, "", "", status, startDate, endDate, keyword,
+	)
+	if err != nil {
+		logger.Errorf("获取全部活动失败: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "获取活动记录失败",
+		})
+		return
+	}
+
+	// 转换为前端需要的格式
+	var activities []Activity
+	for _, ua := range userActivities {
+		var activityType string
+		switch ua.Status {
+		case "success":
+			activityType = "success"
+		case "failed":
+			activityType = "error"
+		default:
+			activityType = "info"
+		}
+
+		resource := ua.Resource
+		if ua.ResourceID != nil {
+			resource += " (ID: " + strconv.Itoa(int(*ua.ResourceID)) + ")"
+		}
+
+		activity := Activity{
+			ID:        ua.ID,
+			Message:   ua.Description,
+			Type:      activityType,
+			Timestamp: ua.CreatedAt,
+			UserID:    ua.UserID,
+			Username:  ua.User.Username,
+			Resource:  resource,
+		}
+
+		activities = append(activities, activity)
+	}
+
+	response := PaginatedResponse{
+		Data:       activities,
+		Total:      total,
+		Page:       page,
+		Size:       size,
+		TotalPages: (total + int64(size) - 1) / int64(size),
+	}
+
+	c.JSON(http.StatusOK, response)
 }

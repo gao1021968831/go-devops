@@ -49,32 +49,12 @@
       </el-form-item>
       
       <el-form-item label="脚本内容" prop="content">
-        <div class="code-editor-container">
-          <div class="editor-toolbar">
-            <el-button-group size="small">
-              <el-button @click="formatCode">
-                <el-icon><Tools /></el-icon>
-                格式化
-              </el-button>
-              <el-button @click="insertTemplate">
-                <el-icon><Document /></el-icon>
-                模板
-              </el-button>
-            </el-button-group>
-            <div class="editor-info">
-              <span>行数: {{ lineCount }}</span>
-              <span>字符: {{ form.content.length }}</span>
-            </div>
-          </div>
-          <el-input
-            v-model="form.content"
-            type="textarea"
-            :rows="15"
-            placeholder="请输入脚本内容"
-            class="code-editor"
-            @input="updateLineCount"
-          />
-        </div>
+        <CodeEditor
+          v-model="form.content"
+          :language="getEditorLanguage(form.type)"
+          :height="400"
+          @language-change="handleLanguageChange"
+        />
       </el-form-item>
     </el-form>
     
@@ -94,6 +74,7 @@
 import { ref, computed, watch, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import api from '@/utils/api'
+import CodeEditor from './CodeEditor.vue'
 import {
   Check,
   Tools,
@@ -209,27 +190,25 @@ const updateLineCount = () => {
   lineCount.value = form.value.content.split('\n').length
 }
 
-const formatCode = () => {
-  // 简单的代码格式化
-  let content = form.value.content
-  
-  // 移除多余的空行
-  content = content.replace(/\n\s*\n\s*\n/g, '\n\n')
-  
-  // 统一缩进（将 tab 转换为 2 个空格）
-  content = content.replace(/\t/g, '  ')
-  
-  form.value.content = content
-  updateLineCount()
-  ElMessage.success('代码格式化完成')
+const getEditorLanguage = (scriptType) => {
+  const languageMap = {
+    'shell': 'shell',
+    'python2': 'python2',
+    'python3': 'python3'
+  }
+  return languageMap[scriptType] || 'shell'
 }
 
-const insertTemplate = () => {
-  const template = templates[form.value.type]
-  if (template) {
-    form.value.content = template
-    updateLineCount()
-    ElMessage.success('模板插入完成')
+const handleLanguageChange = (newLanguage) => {
+  // 根据编辑器语言更新脚本类型
+  const typeMap = {
+    'shell': 'shell',
+    'python2': 'python2',
+    'python3': 'python3'
+  }
+  const newType = typeMap[newLanguage]
+  if (newType && ['shell', 'python2', 'python3'].includes(newType)) {
+    form.value.type = newType
   }
 }
 

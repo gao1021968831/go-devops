@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -15,15 +16,17 @@ import (
 
 // JobExecutionHandler 作业执行处理器
 type JobExecutionHandler struct {
-	db              *gorm.DB
+	db               *gorm.DB
 	executionService *services.ExecutionService
+	activityService  *services.ActivityService
 }
 
 // NewJobExecutionHandler 创建作业执行处理器
 func NewJobExecutionHandler(db *gorm.DB) *JobExecutionHandler {
 	return &JobExecutionHandler{
-		db:              db,
+		db:               db,
 		executionService: services.NewExecutionService(db),
+		activityService:  services.NewActivityService(db),
 	}
 }
 
@@ -79,8 +82,9 @@ func (h *JobExecutionHandler) ExecuteJob(c *gin.Context) {
 
 	// 为每个主机创建执行记录并启动执行
 	for _, host := range hosts {
+		jobID := uint(id)
 		execution, err := h.executionService.CreateJobExecution(
-			uint(id),
+			&jobID,
 			host.ID,
 			job.Script.Content,
 			job.Script.Type,
@@ -106,6 +110,11 @@ func (h *JobExecutionHandler) ExecuteJob(c *gin.Context) {
 
 	// 启动作业状态监控
 	go h.monitorJobCompletion(job.ID)
+
+	// 记录作业执行活动
+	userID := c.GetUint("user_id")
+	h.activityService.LogSuccess(c, userID, "execute", "job", &job.ID, 
+		fmt.Sprintf("执行作业 '%s' 在 %d 台主机上", job.Name, len(hosts)))
 
 	c.JSON(http.StatusOK, gin.H{
 		"message":    "作业执行已启动",
@@ -154,7 +163,7 @@ func (h *JobExecutionHandler) QuickExecuteScript(c *gin.Context) {
 	// 为每个主机创建执行记录并启动执行
 	for _, host := range hosts {
 		execution, err := h.executionService.CreateJobExecution(
-			0, // 快速执行没有关联的作业ID
+			nil, // 快速执行没有关联的作业ID
 			host.ID,
 			request.ScriptContent,
 			request.ScriptType,
@@ -186,6 +195,10 @@ func (h *JobExecutionHandler) QuickExecuteScript(c *gin.Context) {
 		"execution_count": len(executions),
 		"executed_by":   executedBy,
 	}).Info("快速脚本执行已启动")
+
+	// 记录快速执行活动
+	h.activityService.LogSuccess(c, executedBy, "execute", "script", nil, 
+		fmt.Sprintf("快速执行脚本 '%s' 在 %d 台主机上", request.Name, len(hosts)))
 
 	c.JSON(http.StatusOK, gin.H{
 		"message":    "快速执行已启动",

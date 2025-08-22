@@ -3,7 +3,7 @@
     <!-- 顶部导航栏 -->
     <div class="layout-header">
       <div class="header-left">
-        <h2 style="color: white; margin: 0;">DevOps管理平台</h2>
+        <h2 style="color: white; margin: 0;">{{ systemStore.appName }}</h2>
       </div>
       <div class="header-right">
         <el-dropdown @command="handleCommand">
@@ -47,20 +47,37 @@
       <!-- 主要内容区域 -->
       <div class="layout-main">
         <router-view />
+        
+        <!-- 页脚版本信息 -->
+        <div class="layout-footer">
+          <span class="footer-text">
+            {{ systemStore.appName }} v{{ systemStore.appVersion }}
+            <el-tag v-if="!systemStore.isProduction" type="warning" size="small" style="margin-left: 8px;">
+              {{ systemStore.appEnvironment }}
+            </el-tag>
+          </span>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { useSystemStore } from '@/stores/system'
 import { ElMessageBox } from 'element-plus'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
+const systemStore = useSystemStore()
+
+// 初始化时加载系统信息
+onMounted(() => {
+  systemStore.loadSystemInfo()
+})
 
 // 菜单路由
 const menuRoutes = computed(() => {
@@ -131,6 +148,12 @@ const handleCommand = async (command) => {
   background-color: rgba(255, 255, 255, 0.1);
 }
 
+.layout-main {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 60px);
+}
+
 .sidebar-menu {
   border: none;
   height: 100%;
@@ -145,5 +168,22 @@ const handleCommand = async (command) => {
   background-color: #e6f7ff;
   color: #1890ff;
   border-right: 3px solid #1890ff;
+}
+
+.layout-footer {
+  margin-top: auto;
+  padding: 16px 24px;
+  text-align: center;
+  border-top: 1px solid #f0f0f0;
+  background-color: #fafafa;
+}
+
+.footer-text {
+  font-size: 12px;
+  color: #909399;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
 }
 </style>

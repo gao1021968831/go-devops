@@ -12,6 +12,7 @@ import (
 
 	"go-devops/internal/logger"
 	"go-devops/internal/models"
+	"go-devops/internal/services"
 	"go-devops/internal/ssh"
 
 	"github.com/gin-gonic/gin"
@@ -21,11 +22,15 @@ import (
 )
 
 type HostHandler struct {
-	db *gorm.DB
+	db              *gorm.DB
+	activityService *services.ActivityService
 }
 
 func NewHostHandler(db *gorm.DB) *HostHandler {
-	return &HostHandler{db: db}
+	return &HostHandler{
+		db:              db,
+		activityService: services.NewActivityService(db),
+	}
 }
 
 // 获取主机列表
@@ -82,6 +87,11 @@ func (h *HostHandler) CreateHost(c *gin.Context) {
 
 	logger.Infof("创建主机成功: %s (%s)", host.Name, host.IP)
 	logger.LogDBOperation("create", "hosts", true, "")
+	
+	// 记录活动
+	userID := c.GetUint("user_id")
+	h.activityService.LogSuccess(c, userID, "create", "host", &host.ID, 
+		fmt.Sprintf("创建主机 '%s' (%s)", host.Name, host.IP))
 
 	c.JSON(http.StatusCreated, host)
 }
@@ -196,6 +206,11 @@ func (h *HostHandler) UpdateHost(c *gin.Context) {
 
 	logger.Infof("更新主机成功: %s (%s)", host.Name, host.IP)
 	logger.LogDBOperation("update", "hosts", true, "")
+	
+	// 记录活动
+	userID := c.GetUint("user_id")
+	h.activityService.LogSuccess(c, userID, "update", "host", &host.ID, 
+		fmt.Sprintf("更新主机 '%s' (%s)", host.Name, host.IP))
 
 	// 重新查询更新后的数据
 	h.db.First(&host, uint(id))
@@ -298,12 +313,80 @@ func (h *HostHandler) DeleteHost(c *gin.Context) {
 		return
 	}
 
-	if err := h.db.Delete(&models.Host{}, uint(id)).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "删除主机失败"})
+	hostID := uint(id)
+
+	// 首先检查主机是否存在
+	var host models.Host
+	if err := h.db.First(&host, hostID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "主机不存在"})
+		} else {
+			logger.Errorf("查询主机失败: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "查询主机失败"})
+		}
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "主机删除成功"})
+	// 检查主机是否在拓扑中有关联
+	var topology models.HostTopology
+	if err := h.db.Preload("Cluster.Environment.Business").Where("host_id = ?", hostID).First(&topology).Error; err == nil {
+		// 主机在拓扑中有关联，不能直接删除
+		c.JSON(http.StatusConflict, gin.H{
+			"error": "无法删除主机",
+			"message": fmt.Sprintf("主机 '%s' 已分配到拓扑结构中，请先从以下位置移除后再删除：", host.Name),
+			"topology": gin.H{
+				"business":    topology.Cluster.Environment.Business.Name,
+				"environment": topology.Cluster.Environment.Name,
+				"cluster":     topology.Cluster.Name,
+			},
+			"suggestion": "请前往【拓扑管理】页面，将主机从集群中移除后再尝试删除",
+		})
+		return
+	}
+
+	// 检查主机是否有执行记录关联
+	var executionCount int64
+	if err := h.db.Model(&models.JobExecution{}).Where("host_id = ?", hostID).Count(&executionCount).Error; err != nil {
+		logger.Errorf("检查主机执行记录失败: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "检查主机关联数据失败"})
+		return
+	}
+
+	if executionCount > 0 {
+		c.JSON(http.StatusConflict, gin.H{
+			"error": "无法删除主机",
+			"message": fmt.Sprintf("主机 '%s' 存在 %d 条作业执行记录，无法删除", host.Name, executionCount),
+			"suggestion": "如需删除，请先清理相关的作业执行记录",
+		})
+		return
+	}
+
+	// 执行删除操作
+	if err := h.db.Delete(&host).Error; err != nil {
+		logger.Errorf("删除主机失败: %v", err)
+		// 检查是否是外键约束错误
+		if strings.Contains(err.Error(), "foreign key constraint") || strings.Contains(err.Error(), "FOREIGN KEY") {
+			c.JSON(http.StatusConflict, gin.H{
+				"error": "无法删除主机",
+				"message": fmt.Sprintf("主机 '%s' 存在关联数据，无法删除", host.Name),
+				"suggestion": "请先清理与该主机相关的所有数据后再尝试删除",
+			})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "删除主机失败"})
+		}
+		return
+	}
+
+	logger.Infof("删除主机成功: %s (%s)", host.Name, host.IP)
+	
+	// 记录活动
+	userID := c.GetUint("user_id")
+	h.activityService.LogSuccess(c, userID, "delete", "host", &hostID, 
+		fmt.Sprintf("删除主机 '%s' (%s)", host.Name, host.IP))
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": fmt.Sprintf("主机 '%s' 删除成功", host.Name),
+	})
 }
 
 // 检查主机状态

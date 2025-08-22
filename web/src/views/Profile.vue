@@ -179,6 +179,45 @@
           </el-card>
         </el-col>
       </el-row>
+
+      <!-- 系统信息 -->
+      <el-row :gutter="24" class="system-row">
+        <el-col :span="24">
+          <el-card class="system-card" shadow="hover">
+            <template #header>
+              <div class="card-header">
+                <el-icon><Monitor /></el-icon>
+                <span>系统信息</span>
+              </div>
+            </template>
+            
+            <el-row :gutter="16">
+              <el-col :span="8">
+                <div class="system-item">
+                  <div class="system-label">应用名称</div>
+                  <div class="system-value">{{ systemStore.appName }}</div>
+                </div>
+              </el-col>
+              <el-col :span="8">
+                <div class="system-item">
+                  <div class="system-label">版本</div>
+                  <div class="system-value">{{ systemStore.appVersion }}</div>
+                </div>
+              </el-col>
+              <el-col :span="8">
+                <div class="system-item">
+                  <div class="system-label">运行环境</div>
+                  <div class="system-value">
+                    <el-tag :type="systemStore.isProduction ? 'success' : 'warning'" size="small">
+                      {{ systemStore.appEnvironment }}
+                    </el-tag>
+                  </div>
+                </div>
+              </el-col>
+            </el-row>
+          </el-card>
+        </el-col>
+      </el-row>
     </div>
   </div>
 </template>
@@ -194,12 +233,15 @@ import {
   Close, 
   Key, 
   Refresh, 
-  DataAnalysis 
+  DataAnalysis,
+  Monitor 
 } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
+import { useSystemStore } from '@/stores/system'
 import api from '@/utils/api'
 
 const userStore = useUserStore()
+const systemStore = useSystemStore()
 
 // 响应式数据
 const editMode = ref(false)
@@ -411,6 +453,7 @@ const formatDate = (dateString, type = 'datetime') => {
 
 // 生命周期
 onMounted(() => {
+  systemStore.loadSystemInfo()
   loadUserProfile().then(() => {
     loadUserStats()
   })
@@ -529,6 +572,56 @@ onMounted(() => {
   font-size: 12px;
   color: #909399;
   font-weight: 500;
+}
+
+/* 系统信息样式 */
+.system-row {
+  margin-top: 24px;
+}
+
+.system-card {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.system-card :deep(.el-card__header) {
+  background: linear-gradient(135deg, #52c41a 0%, #73d13d 100%);
+  color: white;
+  padding: 16px 20px;
+}
+
+.system-card .card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.system-item {
+  text-align: center;
+  padding: 20px 16px;
+  border-radius: 8px;
+  background: #f8f9fa;
+  transition: all 0.3s ease;
+}
+
+.system-item:hover {
+  background: #e9ecef;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.system-label {
+  font-size: 12px;
+  color: #909399;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.system-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
 }
 
 /* 响应式设计 */

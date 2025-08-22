@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -11,15 +12,20 @@ import (
 	"go-devops/internal/config"
 	"go-devops/internal/logger"
 	"go-devops/internal/models"
+	"go-devops/internal/services"
 	"gorm.io/gorm"
 )
 
 type AuthHandler struct {
-	db *gorm.DB
+	db              *gorm.DB
+	activityService *services.ActivityService
 }
 
 func NewAuthHandler(db *gorm.DB) *AuthHandler {
-	return &AuthHandler{db: db}
+	return &AuthHandler{
+		db:              db,
+		activityService: services.NewActivityService(db),
+	}
 }
 
 // 用户登录
@@ -57,7 +63,10 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	logger.Infof("用户登录成功: %s, IP: %s", req.Username, c.ClientIP())
-	logger.LogUserAction(user.ID, req.Username, "login", "auth", true, "登录成功")
+	
+	// 记录登录活动
+	h.activityService.LogSuccess(c, user.ID, "login", "auth", nil, 
+		fmt.Sprintf("用户 '%s' 登录成功", req.Username))
 
 	c.JSON(http.StatusOK, models.AuthResponse{
 		Token: token,

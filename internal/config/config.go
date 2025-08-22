@@ -18,7 +18,20 @@ type Config struct {
 	} `yaml:"app"`
 
 	Database struct {
-		URL string `yaml:"url"`
+		Type   string `yaml:"type"`
+		SQLite struct {
+			File string `yaml:"file"`
+		} `yaml:"sqlite"`
+		MySQL struct {
+			Host      string `yaml:"host"`
+			Port      int    `yaml:"port"`
+			Username  string `yaml:"username"`
+			Password  string `yaml:"password"`
+			Database  string `yaml:"database"`
+			Charset   string `yaml:"charset"`
+			ParseTime bool   `yaml:"parse_time"`
+			Loc       string `yaml:"loc"`
+		} `yaml:"mysql"`
 	} `yaml:"database"`
 
 	JWT struct {
@@ -73,7 +86,14 @@ func Load() (*Config, error) {
 		}
 	}
 	if dbURL := os.Getenv("DATABASE_URL"); dbURL != "" {
-		config.Database.URL = dbURL
+		// 环境变量覆盖数据库配置
+		if config.Database.Type == "mysql" {
+			// MySQL DSN 格式: username:password@tcp(host:port)/database?charset=utf8mb4&parseTime=True&loc=Local
+			// 这里简化处理，实际应该解析 DSN
+			fmt.Printf("DATABASE_URL 环境变量不支持 MySQL 配置，请使用具体的 MySQL 配置项\n")
+		} else {
+			config.Database.SQLite.File = dbURL
+		}
 	}
 	if jwtSecret := os.Getenv("JWT_SECRET"); jwtSecret != "" {
 		config.JWT.Secret = jwtSecret

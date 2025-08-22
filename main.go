@@ -29,18 +29,14 @@ func main() {
 	logger.Info("应用程序启动")
 
 	// 初始化数据库
-	db, err := database.Init(cfg.Database.URL)
+	db, err := database.Init(cfg)
 	if err != nil {
 		logger.Fatal("数据库初始化失败:", err)
 	}
 	logger.Info("数据库初始化成功")
 
 	// 设置Gin模式
-	if cfg.App.Environment == "production" {
-		gin.SetMode(gin.ReleaseMode)
-	} else {
-		gin.SetMode(gin.DebugMode)
-	}
+	setGinMode(cfg.App.Environment)
 
 	// 创建路由 (使用New()避免重复中间件)
 	r := gin.New()
@@ -65,7 +61,7 @@ func main() {
 	// 优雅关闭处理
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	
+
 	go func() {
 		<-c
 		logger.Info("接收到关闭信号，正在关闭服务...")
@@ -76,4 +72,21 @@ func main() {
 	// 启动服务器
 	logger.Infof("服务器启动在端口 %d", cfg.App.Port)
 	logger.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", cfg.App.Port), r))
+}
+
+// 根据环境设置Gin运行模式
+func setGinMode(environment string) {
+	switch environment {
+	case "production":
+		gin.SetMode(gin.ReleaseMode)
+		logger.Info("Gin模式设置为: release (生产环境)")
+	case "test":
+		gin.SetMode(gin.TestMode)
+		logger.Info("Gin模式设置为: test (测试环境)")
+	case "development":
+		fallthrough
+	default:
+		gin.SetMode(gin.DebugMode)
+		logger.Info("Gin模式设置为: debug (开发环境)")
+	}
 }

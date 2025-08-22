@@ -93,7 +93,7 @@ func (s *ExecutionService) handleExecutionError(execution *models.JobExecution, 
 }
 
 // CreateJobExecution 创建作业执行记录
-func (s *ExecutionService) CreateJobExecution(jobID uint, hostID uint, scriptContent, scriptType string, isQuickExec bool, executedBy uint, jobName, scriptName string) (*models.JobExecution, error) {
+func (s *ExecutionService) CreateJobExecution(jobID *uint, hostID uint, scriptContent, scriptType string, isQuickExec bool, executedBy uint, jobName, scriptName string) (*models.JobExecution, error) {
 	execution := &models.JobExecution{
 		JobID:         jobID,
 		HostID:        hostID,

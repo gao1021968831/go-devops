@@ -295,15 +295,21 @@ const copyError = async () => {
 }
 
 const redoQuickExecution = () => {
-  // 跳转到快速执行页面并预填充数据
+  // 跳转到脚本页面并触发快速执行对话框
+  const prefillData = {
+    name: execution.value.script_name || execution.value.job_name || '重新执行',
+    scriptType: execution.value.script_type || 'shell',
+    scriptContent: execution.value.script_content || '',
+    hostIds: execution.value.host_id ? [execution.value.host_id] : [],
+    description: `重新执行 - ${execution.value.script_name || execution.value.job_name || '快速执行脚本'}`
+  }
+  
+  // 跳转到脚本页面，并通过 query 参数传递预填充数据
   router.push({
-    path: '/quick-execute',
+    path: '/scripts',
     query: {
-      name: execution.value.script_name || '重新执行',
-      scriptType: execution.value.script_type || 'shell',
-      scriptContent: execution.value.script_content || '',
-      hostIds: execution.value.host_id ? [execution.value.host_id] : [],
-      description: `重新执行 - ${execution.value.script_name || ''}`
+      action: 'quick-execute',
+      prefill: JSON.stringify(prefillData)
     }
   })
 }

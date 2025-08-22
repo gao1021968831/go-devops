@@ -16,12 +16,15 @@ func SetupRoutes(router *gin.RouterGroup, db *gorm.DB) {
 	jobHandler := handlers.NewJobHandler(db)
 	dashboardHandler := handlers.NewDashboardHandler(db)
 	topologyHandler := handlers.NewTopologyHandler(db)
+	systemHandler := handlers.NewSystemHandler()
 
 	// 公开路由
 	public := router.Group("/")
 	{
 		public.POST("/login", authHandler.Login)
 		public.POST("/register", authHandler.Register)
+		public.GET("/system/info", systemHandler.GetSystemInfo)
+		public.GET("/system/health", systemHandler.GetHealthCheck)
 	}
 
 	// 需要认证的路由
@@ -79,7 +82,8 @@ func SetupRoutes(router *gin.RouterGroup, db *gorm.DB) {
 
 		// 仪表盘API
 		protected.GET("/dashboard/stats", dashboardHandler.GetDashboardStats)
-		protected.GET("/dashboard/activities", dashboardHandler.GetRecentActivities)
+		protected.GET("/dashboard/activities", dashboardHandler.GetAllActivities)
+		protected.GET("/dashboard/recent-activities", dashboardHandler.GetRecentActivities)
 		protected.GET("/dashboard/job-trend", dashboardHandler.GetJobTrend)
 		protected.GET("/dashboard/host-status", dashboardHandler.GetHostStatusDistribution)
 

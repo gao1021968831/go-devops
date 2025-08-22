@@ -17,7 +17,36 @@
         <el-input v-model="form.name" placeholder="请输入执行任务名称" />
       </el-form-item>
       
-      <el-form-item label="脚本类型" prop="scriptType">
+      <el-form-item label="执行方式" prop="executeMode">
+        <el-radio-group v-model="form.executeMode" @change="handleExecuteModeChange">
+          <el-radio value="new">新建脚本</el-radio>
+          <el-radio value="existing">选择已有脚本</el-radio>
+        </el-radio-group>
+      </el-form-item>
+      
+      <el-form-item v-if="form.executeMode === 'existing'" label="选择脚本" prop="selectedScriptId">
+        <el-select 
+          v-model="form.selectedScriptId" 
+          placeholder="请选择脚本" 
+          style="width: 100%"
+          @change="handleScriptSelect"
+          filterable
+        >
+          <el-option
+            v-for="script in availableScripts"
+            :key="script.id"
+            :label="script.name"
+            :value="script.id"
+          >
+            <div class="script-option">
+              <div class="script-name">{{ script.name }}</div>
+              <div class="script-desc">{{ script.description || '无描述' }} - {{ script.type }}</div>
+            </div>
+          </el-option>
+        </el-select>
+      </el-form-item>
+      
+      <el-form-item v-if="form.executeMode === 'new'" label="脚本类型" prop="scriptType">
         <el-select v-model="form.scriptType" placeholder="请选择脚本类型" style="width: 200px">
           <el-option
             v-for="type in scriptTypes"
@@ -35,34 +64,27 @@
       </el-form-item>
       
       <el-form-item label="脚本内容" prop="scriptContent">
-        <div class="code-editor-container">
-          <div class="editor-toolbar">
-            <el-button-group size="small">
-              <el-button @click="formatCode">
-                <el-icon><Tools /></el-icon>
-                格式化
-              </el-button>
-              <el-button @click="insertTemplate">
-                <el-icon><Document /></el-icon>
-                插入模板
-              </el-button>
-              <el-button @click="clearContent">
-                <el-icon><Delete /></el-icon>
-                清空
-              </el-button>
-            </el-button-group>
-            <div class="editor-info">
-              <span>行数: {{ lineCount }}</span>
-              <span>字符: {{ form.scriptContent.length }}</span>
-            </div>
+        <div class="script-content-section">
+          <div v-if="form.executeMode === 'existing' && form.selectedScriptId" class="script-actions">
+            <el-button size="small" type="primary" @click="enableScriptEdit" v-if="!scriptEditable">
+              <el-icon><Edit /></el-icon>
+              编辑脚本
+            </el-button>
+            <el-button size="small" @click="cancelScriptEdit" v-if="scriptEditable">
+              <el-icon><Close /></el-icon>
+              取消编辑
+            </el-button>
+            <el-button size="small" type="success" @click="saveScriptEdit" v-if="scriptEditable">
+              <el-icon><Check /></el-icon>
+              保存修改
+            </el-button>
           </div>
-          <el-input
+          <CodeEditor
             v-model="form.scriptContent"
-            type="textarea"
-            :rows="12"
-            placeholder="请输入脚本内容..."
-            class="script-textarea"
-            @input="updateLineCount"
+            :language="getEditorLanguage(getCurrentScriptType())"
+            :height="350"
+            :readonly="form.executeMode === 'existing' && !scriptEditable"
+            @language-change="handleLanguageChange"
           />
         </div>
       </el-form-item>
@@ -105,6 +127,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRouter } from 'vue-router'
 import api from '@/utils/api'
 import HostSelector from './HostSelector.vue'
+import CodeEditor from './CodeEditor.vue'
 import {
   Tools,
   Document,
@@ -115,7 +138,9 @@ import {
   DataLine,
   Setting,
   Files,
-  Connection
+  Connection,
+  Close,
+  Check
 } from '@element-plus/icons-vue'
 
 const props = defineProps({
@@ -130,9 +155,14 @@ const router = useRouter()
 // 响应式数据
 const formRef = ref()
 const executing = ref(false)
+const availableScripts = ref([])
+const scriptEditable = ref(false)
+const originalScriptContent = ref('')
 
 const form = ref({
   name: '',
+  executeMode: 'new',
+  selectedScriptId: '',
   scriptType: 'shell',
   scriptContent: '',
   hostIds: [],
@@ -192,60 +222,107 @@ const getTypeDescription = (type) => {
   return scriptType ? scriptType.desc : ''
 }
 
-const formatCode = () => {
-  if (!form.value.scriptContent.trim()) {
-    ElMessage.warning('请先输入脚本内容')
-    return
+const getEditorLanguage = (scriptType) => {
+  const languageMap = {
+    'shell': 'shell',
+    'python2': 'python2',
+    'python3': 'python3'
   }
-  
-  // 简单的代码格式化
-  const lines = form.value.scriptContent.split('\n')
-  const formattedLines = lines.map(line => line.trim()).filter(line => line)
-  form.value.scriptContent = formattedLines.join('\n')
-  updateLineCount()
-  ElMessage.success('代码格式化完成')
+  return languageMap[scriptType] || 'shell'
 }
 
-const insertTemplate = () => {
-  const templates = {
-    shell: `#!/bin/bash
-echo "Hello BlueKing"
-echo "当前时间: $(date)"
-echo "当前用户: $(whoami)"
-echo "系统信息: $(uname -a)"`,
-    python2: `#!/usr/bin/env python2
-# -*- coding: utf-8 -*-
-print "Hello BlueKing"
-import datetime
-print "当前时间: " + str(datetime.datetime.now())
-import os
-print "当前用户: " + os.getenv('USER', 'unknown')`,
-    python3: `#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-print("Hello BlueKing")
-import datetime
-print(f"当前时间: {datetime.datetime.now()}")
-import os
-print(f"当前用户: {os.getenv('USER', 'unknown')}")`
+const handleLanguageChange = (newLanguage) => {
+  // 根据编辑器语言更新脚本类型
+  const typeMap = {
+    'shell': 'shell',
+    'python2': 'python2',
+    'python3': 'python3'
   }
-  
-  const template = templates[form.value.scriptType] || templates.shell
-  form.value.scriptContent = template
-  updateLineCount()
-  ElMessage.success('模板插入成功')
+  const newType = typeMap[newLanguage]
+  if (newType && scriptTypes.find(t => t.value === newType)) {
+    form.value.scriptType = newType
+  }
 }
 
-const clearContent = () => {
-  ElMessageBox.confirm('确定要清空脚本内容吗？', '确认清空', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'warning'
-  }).then(() => {
+// 加载可用脚本列表
+const loadAvailableScripts = async () => {
+  try {
+    const response = await api.get('/api/v1/scripts')
+    availableScripts.value = response.data.scripts || []
+  } catch (error) {
+    console.error('加载脚本列表失败:', error)
+  }
+}
+
+// 处理执行方式变化
+const handleExecuteModeChange = (mode) => {
+  if (mode === 'existing') {
+    loadAvailableScripts()
     form.value.scriptContent = ''
-    updateLineCount()
-    ElMessage.success('内容已清空')
-  }).catch(() => {})
+    form.value.selectedScriptId = ''
+  } else {
+    form.value.selectedScriptId = ''
+    form.value.scriptContent = ''
+  }
+  scriptEditable.value = false
 }
+
+// 处理脚本选择
+const handleScriptSelect = async (scriptId) => {
+  if (!scriptId) return
+  
+  try {
+    const response = await api.get(`/api/v1/scripts/${scriptId}`)
+    const script = response.data
+    form.value.scriptContent = script.content
+    form.value.scriptType = script.type
+    originalScriptContent.value = script.content
+    scriptEditable.value = false
+    
+    // 自动设置执行名称
+    if (!form.value.name) {
+      form.value.name = `执行-${script.name}`
+    }
+  } catch (error) {
+    ElMessage.error('加载脚本内容失败')
+  }
+}
+
+// 获取当前脚本类型
+const getCurrentScriptType = () => {
+  if (form.value.executeMode === 'existing' && form.value.selectedScriptId) {
+    const script = availableScripts.value.find(s => s.id === form.value.selectedScriptId)
+    return script?.type || 'shell'
+  }
+  return form.value.scriptType
+}
+
+// 启用脚本编辑
+const enableScriptEdit = () => {
+  scriptEditable.value = true
+  originalScriptContent.value = form.value.scriptContent
+}
+
+// 取消脚本编辑
+const cancelScriptEdit = () => {
+  scriptEditable.value = false
+  form.value.scriptContent = originalScriptContent.value
+}
+
+// 保存脚本编辑
+const saveScriptEdit = async () => {
+  try {
+    await api.put(`/api/v1/scripts/${form.value.selectedScriptId}`, {
+      content: form.value.scriptContent
+    })
+    originalScriptContent.value = form.value.scriptContent
+    scriptEditable.value = false
+    ElMessage.success('脚本内容已保存')
+  } catch (error) {
+    ElMessage.error('保存脚本失败')
+  }
+}
+
 
 const handleExecute = async () => {
   if (!formRef.value) return
@@ -291,12 +368,15 @@ const handleClosed = () => {
   }
   form.value = {
     name: '',
+    executeMode: 'new',
+    selectedScriptId: '',
     scriptType: 'shell',
     scriptContent: '',
     hostIds: [],
     description: ''
   }
-  lineCount.value = 1
+  scriptEditable.value = false
+  originalScriptContent.value = ''
   executing.value = false
 }
 
@@ -314,12 +394,13 @@ watch(() => props.prefillData, (newData) => {
   if (newData && props.visible) {
     form.value = {
       name: newData.name || '',
+      executeMode: newData.executeMode || 'new',
+      selectedScriptId: newData.selectedScriptId || '',
       scriptType: newData.scriptType || 'shell',
       scriptContent: newData.scriptContent || '',
       hostIds: newData.hostIds || [],
       description: newData.description || ''
     }
-    updateLineCount()
   }
 }, { immediate: true })
 </script>
@@ -345,6 +426,36 @@ watch(() => props.prefillData, (newData) => {
   margin-left: 12px;
   color: #909399;
   font-size: 12px;
+}
+
+.script-option {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.script-name {
+  font-weight: 600;
+  color: #303133;
+}
+
+.script-desc {
+  font-size: 12px;
+  color: #909399;
+}
+
+.script-content-section {
+  position: relative;
+}
+
+.script-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 8px;
+  background: #f5f7fa;
+  border-radius: 4px;
+  border: 1px solid #e4e7ed;
 }
 
 .code-editor-container {

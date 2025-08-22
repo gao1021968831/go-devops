@@ -2,7 +2,7 @@
   <div class="login-container">
     <div class="login-box">
       <div class="login-header">
-        <h1>DevOps管理平台</h1>
+        <h1>{{ systemStore.appName }}</h1>
         <p>现代化运维管理解决方案</p>
       </div>
       
@@ -112,13 +112,20 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { useSystemStore } from '@/stores/system'
 import { ElMessage } from 'element-plus'
 
 const router = useRouter()
 const userStore = useUserStore()
+const systemStore = useSystemStore()
+
+// 初始化时加载系统信息
+onMounted(() => {
+  systemStore.loadSystemInfo()
+})
 
 const activeTab = ref('login')
 const loginFormRef = ref()

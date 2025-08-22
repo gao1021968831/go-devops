@@ -66,8 +66,8 @@ type Job struct {
 // 作业执行记录
 type JobExecution struct {
 	ID          uint       `json:"id" gorm:"primaryKey"`
-	JobID       uint       `json:"job_id"`
-	Job         Job        `json:"job" gorm:"foreignKey:JobID"`
+	JobID       *uint      `json:"job_id"` // 允许为NULL，快速执行时不关联作业
+	Job         *Job       `json:"job" gorm:"foreignKey:JobID"`
 	HostID      uint       `json:"host_id"`
 	Host        Host       `json:"host" gorm:"foreignKey:HostID"`
 	Status      string     `json:"status" gorm:"default:running"`
@@ -273,4 +273,20 @@ type ClusterRequest struct {
 type HostTopologyRequest struct {
 	HostID    uint `json:"host_id" binding:"required"`
 	ClusterID uint `json:"cluster_id" binding:"required"`
+}
+
+// 用户活动记录
+type UserActivity struct {
+	ID          uint      `json:"id" gorm:"primaryKey"`
+	UserID      uint      `json:"user_id"`
+	User        User      `json:"user" gorm:"foreignKey:UserID"`
+	Action      string    `json:"action"`      // 操作类型：create, update, delete, login, logout等
+	Resource    string    `json:"resource"`    // 资源类型：user, host, job, script等  
+	ResourceID  *uint     `json:"resource_id"` // 资源ID，可为空
+	Description string    `json:"description"` // 操作描述
+	IPAddress   string    `json:"ip_address"`  // 操作IP地址
+	UserAgent   string    `json:"user_agent"`  // 用户代理
+	Status      string    `json:"status" gorm:"default:success"` // success, failed
+	Details     string    `json:"details" gorm:"type:text"`      // 详细信息或错误信息
+	CreatedAt   time.Time `json:"created_at"`
 }

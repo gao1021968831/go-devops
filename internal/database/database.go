@@ -1,16 +1,46 @@
 package database
 
 import (
+	"fmt"
+	"go-devops/internal/config"
 	"go-devops/internal/logger"
 	"go-devops/internal/models"
+	"gorm.io/driver/mysql"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
-func Init(databaseURL string) (*gorm.DB, error) {
-	logger.Infof("初始化数据库连接: %s", databaseURL)
+func Init(cfg *config.Config) (*gorm.DB, error) {
+	logger.Infof("初始化数据库连接: %s", cfg.Database.Type)
 	
-	db, err := gorm.Open(sqlite.Open(databaseURL), &gorm.Config{})
+	var db *gorm.DB
+	var err error
+	
+	switch cfg.Database.Type {
+	case "mysql":
+		dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=%s&parseTime=%t&loc=%s",
+			cfg.Database.MySQL.Username,
+			cfg.Database.MySQL.Password,
+			cfg.Database.MySQL.Host,
+			cfg.Database.MySQL.Port,
+			cfg.Database.MySQL.Database,
+			cfg.Database.MySQL.Charset,
+			cfg.Database.MySQL.ParseTime,
+			cfg.Database.MySQL.Loc,
+		)
+		logger.Infof("MySQL DSN: %s:***@tcp(%s:%d)/%s", 
+			cfg.Database.MySQL.Username,
+			cfg.Database.MySQL.Host,
+			cfg.Database.MySQL.Port,
+			cfg.Database.MySQL.Database)
+		db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	case "sqlite":
+		fallthrough
+	default:
+		logger.Infof("SQLite 文件: %s", cfg.Database.SQLite.File)
+		db, err = gorm.Open(sqlite.Open(cfg.Database.SQLite.File), &gorm.Config{})
+	}
+	
 	if err != nil {
 		logger.Errorf("数据库连接失败: %v", err)
 		logger.LogDBOperation("connect", "database", false, err.Error())
@@ -31,6 +61,7 @@ func Init(databaseURL string) (*gorm.DB, error) {
 		&models.Environment{},
 		&models.Cluster{},
 		&models.HostTopology{},
+		&models.UserActivity{},
 	)
 	if err != nil {
 		logger.Errorf("数据库表迁移失败: %v", err)

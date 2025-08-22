@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"time"
+	"go-devops/internal/config"
 	"go-devops/internal/models"
 	"go-devops/internal/ssh"
 	"go-devops/internal/logger"
@@ -12,13 +13,22 @@ type Scheduler struct {
 	db       *gorm.DB
 	stopChan chan bool
 	running  bool
+	cfg      *config.Config
 }
 
 func NewScheduler(db *gorm.DB) *Scheduler {
+	// 加载配置
+	cfg, err := config.Load()
+	if err != nil {
+		logger.Errorf("调度器加载配置失败，使用默认配置: %v", err)
+		cfg = nil
+	}
+	
 	return &Scheduler{
 		db:       db,
 		stopChan: make(chan bool),
 		running:  false,
+		cfg:      cfg,
 	}
 }
 
@@ -29,9 +39,16 @@ func (s *Scheduler) Start() {
 	}
 	
 	s.running = true
-	logger.Infof("定时任务调度器启动")
 	
-	// 启动主机状态检查定时任务（每5分钟执行一次）
+	// 检查调度器是否启用
+	if s.cfg != nil && !s.cfg.Scheduler.Enabled {
+		logger.Info("定时任务调度器已禁用")
+		return
+	}
+	
+	logger.Info("定时任务调度器启动")
+	
+	// 启动主机状态检查定时任务
 	go s.startHostStatusChecker()
 }
 
@@ -48,7 +65,11 @@ func (s *Scheduler) Stop() {
 
 // 主机状态检查定时任务
 func (s *Scheduler) startHostStatusChecker() {
-	ticker := time.NewTicker(5 * time.Minute) // 每5分钟检查一次
+	// 获取检查间隔
+	interval := s.getHostCheckInterval()
+	logger.Infof("主机状态检查间隔设置为: %v", interval)
+	
+	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	
 	// 立即执行一次检查
@@ -59,10 +80,31 @@ func (s *Scheduler) startHostStatusChecker() {
 		case <-ticker.C:
 			s.checkAllHostsStatus()
 		case <-s.stopChan:
-			logger.Infof("主机状态检查定时任务停止")
+			logger.Info("主机状态检查定时任务停止")
 			return
 		}
 	}
+}
+
+// 获取主机检查间隔
+func (s *Scheduler) getHostCheckInterval() time.Duration {
+	if s.cfg == nil || s.cfg.Scheduler.HostCheckInterval == "" {
+		return 5 * time.Minute // 默认5分钟
+	}
+	
+	duration, err := time.ParseDuration(s.cfg.Scheduler.HostCheckInterval)
+	if err != nil {
+		logger.Errorf("解析主机检查间隔失败: %v，使用默认值5分钟", err)
+		return 5 * time.Minute
+	}
+	
+	// 最小间隔1分钟
+	if duration < time.Minute {
+		logger.Warn("主机检查间隔过短，设置为最小值1分钟")
+		return time.Minute
+	}
+	
+	return duration
 }
 
 // 检查所有主机状态
@@ -125,12 +167,14 @@ func (s *Scheduler) checkSingleHostStatus(host models.Host) string {
 	return "offline"
 }
 
-// 设置检查间隔（分钟）
-func (s *Scheduler) SetHostCheckInterval(minutes int) {
-	if minutes < 1 {
-		minutes = 5 // 最小间隔5分钟
+// 重新加载配置
+func (s *Scheduler) ReloadConfig() {
+	cfg, err := config.Load()
+	if err != nil {
+		logger.Errorf("重新加载配置失败: %v", err)
+		return
 	}
 	
-	logger.Infof("主机状态检查间隔设置为 %d 分钟", minutes)
-	// 这里可以实现动态调整检查间隔的逻辑
+	s.cfg = cfg
+	logger.Info("调度器配置重新加载成功")
 }

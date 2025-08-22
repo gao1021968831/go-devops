@@ -2,14 +2,27 @@
 
 # 应用配置
 app:
-  name: "DevOps管理平台"
-  version: "1.0.0"
-  environment: "development"
+  name: "作业管理平台"
+  version: "0.1"
+  environment: "production"  # development, production, test
   port: 8080
 
 # 数据库配置
 database:
-  url: "devops.db"
+  type: "mysql"  # sqlite, mysql
+  # SQLite 配置
+  sqlite:
+    file: "devops.db"
+  # MySQL 配置
+  mysql:
+    host: "192.168.200.182"
+    port: 3306
+    username: "devops"
+    password: "123456"
+    database: "devops"
+    charset: "utf8mb4"
+    parse_time: true
+    loc: "Local"
 
 # JWT配置
 jwt:
@@ -20,7 +33,7 @@ jwt:
 logging:
   level: "info"
   to_file: true
-  file_path: "logs/"
+  file_path: "log/"
 
 # 定时任务配置
 scheduler:

@@ -2,25 +2,33 @@ package logger
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"go-devops/internal/config"
 )
 
 var Logger *logrus.Logger
 
 // 初始化日志
 func Init() {
-	Logger = logrus.New()
-
-	// 创建日志目录
-	logDir := "logs"
-	if err := os.MkdirAll(logDir, 0755); err != nil {
-		fmt.Printf("创建日志目录失败: %v\n", err)
+	// 加载配置
+	cfg, err := config.Load()
+	if err != nil {
+		fmt.Printf("加载配置失败，使用默认日志配置: %v\n", err)
+		initWithDefaults()
 		return
 	}
+
+	Logger = logrus.New()
+
+	// 设置日志级别
+	level := parseLogLevel(cfg.Logging.Level)
+	Logger.SetLevel(level)
 
 	// 设置日志格式
 	Logger.SetFormatter(&logrus.JSONFormatter{
@@ -28,22 +36,64 @@ func Init() {
 		PrettyPrint:     false,
 	})
 
-	// 设置日志级别
-	Logger.SetLevel(logrus.InfoLevel)
-
-	// 创建日志文件
-	logFile := filepath.Join(logDir, fmt.Sprintf("app-%s.log", time.Now().Format("2006-01-02")))
-	file, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-	if err != nil {
-		fmt.Printf("打开日志文件失败: %v\n", err)
+	// 根据配置设置输出
+	if cfg.Logging.ToFile {
+		// 创建日志目录
+		logDir := strings.TrimSuffix(cfg.Logging.FilePath, "/")
+		if logDir == "" {
+			logDir = "logs"
+		}
+		if err := os.MkdirAll(logDir, 0755); err != nil {
+			fmt.Printf("创建日志目录失败: %v\n", err)
+			Logger.SetOutput(os.Stdout)
+		} else {
+			// 创建日志文件
+			logFile := filepath.Join(logDir, fmt.Sprintf("app-%s.log", time.Now().Format("2006-01-02")))
+			file, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+			if err != nil {
+				fmt.Printf("打开日志文件失败: %v\n", err)
+				Logger.SetOutput(os.Stdout)
+			} else {
+				// 同时输出到文件和控制台
+				multiWriter := io.MultiWriter(os.Stdout, file)
+				Logger.SetOutput(multiWriter)
+			}
+		}
+	} else {
+		// 只输出到控制台
 		Logger.SetOutput(os.Stdout)
-		return
 	}
 
-	// 设置输出到文件和控制台
-	Logger.SetOutput(file)
-
 	Logger.Info("日志系统初始化成功")
+}
+
+// 使用默认配置初始化日志
+func initWithDefaults() {
+	Logger = logrus.New()
+	Logger.SetLevel(logrus.InfoLevel)
+	Logger.SetFormatter(&logrus.JSONFormatter{
+		TimestampFormat: "2006-01-02 15:04:05",
+		PrettyPrint:     false,
+	})
+	Logger.SetOutput(os.Stdout)
+}
+
+// 解析日志级别
+func parseLogLevel(level string) logrus.Level {
+	switch strings.ToLower(level) {
+	case "debug":
+		return logrus.DebugLevel
+	case "info":
+		return logrus.InfoLevel
+	case "warn", "warning":
+		return logrus.WarnLevel
+	case "error":
+		return logrus.ErrorLevel
+	case "fatal":
+		return logrus.FatalLevel
+	default:
+		return logrus.InfoLevel
+	}
 }
 
 // 记录信息日志

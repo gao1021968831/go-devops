@@ -22,6 +22,12 @@ const routes = [
         meta: { title: '仪表盘', icon: 'DataBoard' }
       },
       {
+        path: 'topology',
+        name: 'Topology',
+        component: () => import('@/views/Topology.vue'),
+        meta: { title: '主机拓扑', icon: 'Share' }
+      },
+      {
         path: 'hosts',
         name: 'Hosts',
         component: () => import('@/views/Hosts.vue'),
@@ -45,12 +51,7 @@ const routes = [
         component: () => import('@/views/ExecutionDetail.vue'),
         meta: { title: '执行详情', hidden: true }
       },
-      {
-        path: 'topology',
-        name: 'Topology',
-        component: () => import('@/views/Topology.vue'),
-        meta: { title: '主机拓扑', icon: 'Share' }
-      },
+
       {
         path: 'users',
         name: 'Users',
