@@ -242,9 +242,28 @@ const filteredHosts = computed(() => {
 const loadHosts = async () => {
   try {
     const response = await api.get('/api/v1/hosts')
-    hosts.value = response.data
+    hosts.value = response.data.data || []
   } catch (error) {
-    ElMessage.error('加载主机列表失败')
+    console.error('加载主机列表失败:', error)
+    // 根据HTTP状态码显示具体错误信息
+    if (error.response) {
+      const { status, data } = error.response
+      switch (status) {
+        case 401:
+          ElMessage.error('未授权，请重新登录')
+          break
+        case 403:
+          ElMessage.error('没有权限查看主机列表')
+          break
+        case 500:
+          ElMessage.error('服务器内部错误，加载主机列表失败')
+          break
+        default:
+          ElMessage.error(data?.error || `加载主机列表失败 (状态码: ${status})`)
+      }
+    } else {
+      ElMessage.error('网络连接失败，无法加载主机列表')
+    }
   }
 }
 
@@ -256,7 +275,26 @@ const loadTopologyTree = async () => {
     const treeData = response.data?.data || response.data || []
     topologyTree.value = Array.isArray(treeData) ? treeData : []
   } catch (error) {
-    ElMessage.error('加载拓扑树失败')
+    console.error('加载拓扑树失败:', error)
+    // 根据HTTP状态码显示具体错误信息
+    if (error.response) {
+      const { status, data } = error.response
+      switch (status) {
+        case 401:
+          ElMessage.error('未授权，请重新登录')
+          break
+        case 403:
+          ElMessage.error('没有权限查看拓扑树')
+          break
+        case 500:
+          ElMessage.error('服务器内部错误，加载拓扑树失败')
+          break
+        default:
+          ElMessage.error(data?.error || `加载拓扑树失败 (状态码: ${status})`)
+      }
+    } else {
+      ElMessage.error('网络连接失败，无法加载拓扑树')
+    }
     topologyTree.value = []
   } finally {
     topologyLoading.value = false

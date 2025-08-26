@@ -49,6 +49,16 @@ func (h *JobHandler) QuickExecuteScript(c *gin.Context) {
 	h.execHandler.QuickExecuteScript(c)
 }
 
+// 批量删除作业
+func (h *JobHandler) BatchDeleteJobs(c *gin.Context) {
+	h.crudHandler.BatchDeleteJobs(c)
+}
+
+// 导出作业
+func (h *JobHandler) ExportJobs(c *gin.Context) {
+	h.crudHandler.ExportJobs(c)
+}
+
 func (h *JobHandler) GetJobExecutions(c *gin.Context) {
 	h.execHandler.GetJobExecutions(c)
 }

@@ -43,7 +43,10 @@ func (h *HostHandler) GetHosts(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, hosts)
+	c.JSON(http.StatusOK, gin.H{
+		"data":  hosts,
+		"total": len(hosts),
+	})
 }
 
 // 创建主机

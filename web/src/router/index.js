@@ -51,7 +51,18 @@ const routes = [
         component: () => import('@/views/ExecutionDetail.vue'),
         meta: { title: '执行详情', hidden: true }
       },
-
+      {
+        path: 'files',
+        name: 'Files',
+        component: () => import('@/views/Files.vue'),
+        meta: { title: '文件管理', icon: 'Folder' }
+      },
+      {
+        path: 'file-distributions',
+        name: 'FileDistributions',
+        component: () => import('@/views/FileDistributions.vue'),
+        meta: { title: '分发记录', icon: 'Share' }
+      },
       {
         path: 'users',
         name: 'Users',

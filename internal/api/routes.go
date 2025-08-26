@@ -14,9 +14,11 @@ func SetupRoutes(router *gin.RouterGroup, db *gorm.DB) {
 	hostHandler := handlers.NewHostHandler(db)
 	scriptHandler := handlers.NewScriptHandler(db)
 	jobHandler := handlers.NewJobHandler(db)
+	jobExecutionHandler := handlers.NewJobExecutionHandler(db)
 	dashboardHandler := handlers.NewDashboardHandler(db)
 	topologyHandler := handlers.NewTopologyHandler(db)
 	systemHandler := handlers.NewSystemHandler()
+	fileHandler := handlers.NewFileHandler(db)
 
 	// 公开路由
 	public := router.Group("/")
@@ -37,31 +39,29 @@ func SetupRoutes(router *gin.RouterGroup, db *gorm.DB) {
 		protected.PUT("/profile/password", authHandler.ChangePassword)
 		protected.GET("/profile/stats", authHandler.GetUserStats)
 
-		// 主机管理
+		// 主机管理 - 查看权限对所有用户开放
 		protected.GET("/hosts", hostHandler.GetHosts)
-		protected.POST("/hosts", hostHandler.CreateHost)
 		protected.GET("/hosts/:id", hostHandler.GetHost)
-		protected.PUT("/hosts/:id", hostHandler.UpdateHost)
-		protected.DELETE("/hosts/:id", hostHandler.DeleteHost)
-		protected.POST("/hosts/:id/check", hostHandler.CheckHostStatus)
-		protected.POST("/hosts/:id/test-ssh", hostHandler.TestSSHConnection)
-		protected.POST("/hosts/check-all", hostHandler.CheckAllHostsStatus)
-		protected.GET("/hosts/schedule/config", hostHandler.GetScheduleConfig)
-		protected.PUT("/hosts/schedule/config", hostHandler.UpdateScheduleConfig)
-		protected.PUT("/hosts/:id/auth", hostHandler.UpdateHostAuth)
-
-		// 批量主机操作
-		protected.POST("/hosts/batch/import", hostHandler.BatchImportHosts)
-		protected.POST("/hosts/batch/import-csv", hostHandler.BatchImportHostsFromCSV)
-		protected.GET("/hosts/csv-template", hostHandler.DownloadCSVTemplate)
-		protected.POST("/hosts/batch/operation", hostHandler.BatchHostOperation)
 
 		// 脚本管理
-		protected.GET("/scripts", scriptHandler.GetScripts)
-		protected.POST("/scripts", scriptHandler.CreateScript)
-		protected.GET("/scripts/:id", scriptHandler.GetScript)
-		protected.PUT("/scripts/:id", scriptHandler.UpdateScript)
-		protected.DELETE("/scripts/:id", scriptHandler.DeleteScript)
+		scripts := protected.Group("/scripts")
+		{
+			scripts.GET("", scriptHandler.GetScripts)
+			scripts.POST("", scriptHandler.CreateScript)
+			scripts.GET("/:id", scriptHandler.GetScript)
+			scripts.PUT("/:id", scriptHandler.UpdateScript)
+			scripts.DELETE("/:id", scriptHandler.DeleteScript)
+			scripts.POST("/batch/delete", scriptHandler.BatchDeleteScripts)
+			scripts.GET("/export", scriptHandler.ExportScripts)
+			scripts.POST("/batch/import", scriptHandler.BatchImportScripts)
+			scripts.GET("/import/template", scriptHandler.DownloadImportTemplate)
+		}
+
+		// 作业执行
+		protected.POST("/jobs/:id/execute", jobExecutionHandler.ExecuteJob)
+		protected.POST("/scripts/quick-execute", jobExecutionHandler.QuickExecuteScript)
+		// 脚本文件关联功能
+		protected.POST("/job-executions/save-result", jobExecutionHandler.SaveExecutionResult)
 
 		// 作业管理
 		protected.GET("/jobs", jobHandler.GetJobs)
@@ -69,16 +69,13 @@ func SetupRoutes(router *gin.RouterGroup, db *gorm.DB) {
 		protected.GET("/jobs/:id", jobHandler.GetJob)
 		protected.PUT("/jobs/:id", jobHandler.UpdateJob)
 		protected.DELETE("/jobs/:id", jobHandler.DeleteJob)
-		protected.POST("/jobs/:id/execute", jobHandler.ExecuteJob)
+		protected.POST("/jobs/batch/delete", jobHandler.BatchDeleteJobs)
+		protected.GET("/jobs/export", jobHandler.ExportJobs)
 		protected.GET("/jobs/:id/executions", jobHandler.GetJobExecutions)
-
-		// 快速脚本执行
-		protected.POST("/scripts/quick-execute", jobHandler.QuickExecuteScript)
 
 		// 执行记录管理
 		protected.GET("/executions", jobHandler.GetAllExecutions)
 		protected.GET("/executions/:id", jobHandler.GetExecutionDetail)
-
 
 		// 仪表盘API
 		protected.GET("/dashboard/stats", dashboardHandler.GetDashboardStats)
@@ -108,6 +105,18 @@ func SetupRoutes(router *gin.RouterGroup, db *gorm.DB) {
 		protected.DELETE("/topology/hosts/:hostId/remove", topologyHandler.RemoveHostFromCluster)
 		protected.GET("/topology/hosts/unassigned", topologyHandler.GetUnassignedHosts)
 		protected.GET("/topology/clusters/:clusterId/hosts", topologyHandler.GetHostsByCluster)
+
+		// 文件管理
+		protected.POST("/files/upload", fileHandler.UploadFile)
+		protected.GET("/files/:id/download", fileHandler.DownloadFile)
+		protected.GET("/files", fileHandler.GetFiles)
+		protected.GET("/files/:id", fileHandler.GetFile)
+		protected.PUT("/files/:id", fileHandler.UpdateFile)
+		protected.DELETE("/files/:id", fileHandler.DeleteFile)
+		protected.POST("/files/:id/distribute", fileHandler.DistributeFile)
+		protected.GET("/file-distributions", fileHandler.GetDistributions)
+		protected.GET("/file-distributions/:id", fileHandler.GetDistributionDetail)
+		protected.DELETE("/file-distributions/:id", fileHandler.DeleteDistribution)
 	}
 
 	// 管理员路由
@@ -115,8 +124,30 @@ func SetupRoutes(router *gin.RouterGroup, db *gorm.DB) {
 	admin.Use(middleware.JWTAuth())
 	admin.Use(middleware.AdminRequired())
 	{
+		// 用户管理
 		admin.GET("/users", authHandler.GetUsers)
 		admin.DELETE("/users/:id", authHandler.DeleteUser)
 		admin.PUT("/users/:id/role", authHandler.UpdateUserRole)
+
+		// 主机管理操作（仅管理员）
+		admin.POST("/hosts", hostHandler.CreateHost)
+		admin.PUT("/hosts/:id", hostHandler.UpdateHost)
+		admin.DELETE("/hosts/:id", hostHandler.DeleteHost)
+		admin.POST("/hosts/:id/check", hostHandler.CheckHostStatus)
+		admin.POST("/hosts/:id/test-ssh", hostHandler.TestSSHConnection)
+		admin.POST("/hosts/check-all", hostHandler.CheckAllHostsStatus)
+		admin.GET("/hosts/schedule/config", hostHandler.GetScheduleConfig)
+		admin.PUT("/hosts/schedule/config", hostHandler.UpdateScheduleConfig)
+		admin.PUT("/hosts/:id/auth", hostHandler.UpdateHostAuth)
+
+		// 批量主机操作（仅管理员）
+		admin.POST("/hosts/batch/import", hostHandler.BatchImportHosts)
+		admin.POST("/hosts/batch/import-csv", hostHandler.BatchImportHostsFromCSV)
+		admin.GET("/hosts/csv-template", hostHandler.DownloadCSVTemplate)
+		admin.POST("/hosts/batch/operation", hostHandler.BatchHostOperation)
+
+		// 作业执行记录管理（仅管理员）
+		admin.DELETE("/executions/:id", jobExecutionHandler.DeleteJobExecution)
+		admin.POST("/executions/batch/delete", jobExecutionHandler.BatchDeleteJobExecutions)
 	}
 }

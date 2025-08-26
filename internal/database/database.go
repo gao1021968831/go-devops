@@ -18,7 +18,7 @@ func Init(cfg *config.Config) (*gorm.DB, error) {
 	
 	switch cfg.Database.Type {
 	case "mysql":
-		dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=%s&parseTime=%t&loc=%s",
+		dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=%s&parseTime=%t&loc=%s&collation=utf8mb4_unicode_ci",
 			cfg.Database.MySQL.Username,
 			cfg.Database.MySQL.Password,
 			cfg.Database.MySQL.Host,
@@ -62,11 +62,32 @@ func Init(cfg *config.Config) (*gorm.DB, error) {
 		&models.Cluster{},
 		&models.HostTopology{},
 		&models.UserActivity{},
+		&models.File{},
+		&models.FileDistribution{},
+		&models.FileDistributionDetail{},
 	)
 	if err != nil {
 		logger.Errorf("数据库表迁移失败: %v", err)
 		logger.LogDBOperation("migrate", "tables", false, err.Error())
 		return nil, err
+	}
+	
+	// 修复scripts表的字符集设置
+	if cfg.Database.Type == "mysql" {
+		logger.Info("修复scripts表字符集设置")
+		fixCharsetSQL := []string{
+			"ALTER TABLE scripts MODIFY COLUMN name VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL",
+			"ALTER TABLE scripts MODIFY COLUMN content TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci",
+			"ALTER TABLE scripts MODIFY COLUMN type VARCHAR(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'shell'",
+			"ALTER TABLE scripts MODIFY COLUMN description TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci",
+		}
+		
+		for _, sql := range fixCharsetSQL {
+			if err := db.Exec(sql).Error; err != nil {
+				logger.Warnf("修复字符集失败: %v, SQL: %s", err, sql)
+			}
+		}
+		logger.Info("scripts表字符集修复完成")
 	}
 	
 	logger.Info("数据库表迁移完成")

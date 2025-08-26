@@ -878,10 +878,11 @@ const loadHosts = async () => {
   loading.value = true
   try {
     const response = await api.get('/api/v1/hosts')
-    hosts.value = response.data
+    hosts.value = response.data.data || []
   } catch (error) {
     console.error('加载主机列表失败:', error)
     ElMessage.error(`加载主机列表失败: ${error.response?.data?.error || error.message}`)
+    hosts.value = [] // 确保失败时hosts是空数组
   } finally {
     loading.value = false
   }
@@ -945,7 +946,7 @@ const deleteHost = async (host) => {
       }
     )
     
-    await api.delete(`/api/v1/hosts/${host.id}`)
+    await api.delete(`/api/v1/admin/hosts/${host.id}`)
     ElMessage.success('主机删除成功')
     loadHosts()
   } catch (error) {
@@ -994,7 +995,7 @@ const deleteHost = async (host) => {
 
 const checkHostStatus = async (host) => {
   try {
-    const response = await api.post(`/api/v1/hosts/${host.id}/check`)
+    const response = await api.post(`/api/v1/admin/hosts/${host.id}/check`)
     const { status, message } = response.data
     
     if (status === 'online') {
@@ -1015,7 +1016,7 @@ const checkHostStatus = async (host) => {
 const checkAllHostsStatus = async () => {
   checkingStatus.value = true
   try {
-    const response = await api.post('/api/v1/hosts/check-all')
+    const response = await api.post('/api/v1/admin/hosts/check-all')
     const { results, message } = response.data
     
     if (!results || results.length === 0) {
@@ -1093,10 +1094,10 @@ const saveHost = async () => {
       if (!formData.password) {
         delete formData.password
       }
-      await api.put(`/api/v1/hosts/${editingHost.value.id}`, formData)
+      await api.put(`/api/v1/admin/hosts/${editingHost.value.id}`, formData)
       ElMessage.success('主机信息更新成功')
     } else {
-      await api.post('/api/v1/hosts', formData)
+      await api.post('/api/v1/admin/hosts', formData)
       ElMessage.success('主机添加成功')
     }
     
@@ -1162,7 +1163,7 @@ const handleBatchAction = (command) => {
 // 下载CSV模板
 const downloadCSVTemplate = async () => {
   try {
-    const response = await api.get('/api/v1/hosts/csv-template', {
+    const response = await api.get('/api/v1/admin/hosts/csv-template', {
       responseType: 'blob'
     })
     
@@ -1248,7 +1249,7 @@ const startCSVImport = async () => {
       }
     }, 200)
     
-    const response = await api.post('/api/v1/hosts/batch/import-csv', formData, {
+    const response = await api.post('/api/v1/admin/hosts/batch/import-csv', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }

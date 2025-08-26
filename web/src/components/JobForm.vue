@@ -55,6 +55,30 @@
       <el-form-item label="目标主机" prop="hostIds">
         <HostSelector v-model="form.hostIds" />
       </el-form-item>
+
+
+      <!-- 结果保存配置 -->
+      <el-form-item label="结果保存">
+        <div class="result-save-config">
+          <el-checkbox v-model="form.saveOutput" label="保存执行输出为文件" />
+          <el-checkbox v-model="form.saveError" label="保存错误日志为文件" />
+          
+          <div v-if="form.saveOutput || form.saveError" class="output-category-config">
+            <el-form-item label="文件分类" label-width="80px">
+              <el-select v-model="form.outputCategory" placeholder="选择文件分类">
+                <el-option label="脚本输出" value="script_output" />
+                <el-option label="日志文件" value="log" />
+                <el-option label="报告文件" value="report" />
+                <el-option label="通用文件" value="general" />
+              </el-select>
+            </el-form-item>
+          </div>
+        </div>
+        <div class="help-text">
+          <el-icon><InfoFilled /></el-icon>
+          <span>启用后将自动保存脚本执行结果为文件，便于后续下载和管理</span>
+        </div>
+      </el-form-item>
       
       <el-form-item label="执行方式" prop="executeType">
         <el-select 
@@ -143,6 +167,7 @@ import { ref, computed, watch, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import api from '@/utils/api'
 import HostSelector from './HostSelector.vue'
+import FileSelector from './FileSelector.vue'
 import {
   Document,
   VideoPlay,
@@ -179,7 +204,11 @@ const form = ref({
   hostIds: [],
   executeType: 'manual',
   scheduledTime: null,
-  description: ''
+  description: '',
+  inputFiles: [],
+  saveOutput: false,
+  saveError: false,
+  outputCategory: 'script_output'
 })
 
 const rules = {
@@ -244,7 +273,10 @@ const resetForm = () => {
     hostIds: [],
     executeType: 'manual',
     scheduledTime: null,
-    description: ''
+    description: '',
+    saveOutput: false,
+    saveError: false,
+    outputCategory: 'script_output'
   }
 }
 
@@ -256,7 +288,10 @@ const loadJob = () => {
       hostIds: props.job.host_ids ? JSON.parse(props.job.host_ids) : [],
       executeType: props.job.execute_type,
       scheduledTime: props.job.scheduled_time,
-      description: props.job.description || ''
+      description: props.job.description || '',
+      saveOutput: props.job.save_output || false,
+      saveError: props.job.save_error || false,
+      outputCategory: props.job.output_category || 'script_output'
     }
   } else if (props.script) {
     // 创建模式
@@ -265,12 +300,16 @@ const loadJob = () => {
       hostIds: [],
       executeType: 'manual',
       scheduledTime: null,
-      description: ''
+      description: '',
+      saveOutput: false,
+      saveError: false,
+      outputCategory: 'script_output'
     }
   } else {
     resetForm()
   }
 }
+
 
 const handleSave = async () => {
   if (!formRef.value) return
@@ -290,8 +329,12 @@ const handleSave = async () => {
       name: form.value.name,
       script_id: props.script?.id || props.job?.script_id,
       host_ids: JSON.stringify(form.value.hostIds),
-      execute_type: form.value.executeType,
-      scheduled_time: form.value.scheduledTime,
+      parameters: '',
+      timeout: 300,
+      input_file_ids: JSON.stringify([]),
+      save_output: form.value.saveOutput,
+      save_error: form.value.saveError,
+      output_category: form.value.outputCategory,
       description: form.value.description
     }
     
@@ -360,9 +403,38 @@ watch(() => form.value.executeType, (newType) => {
 }
 
 .script-icon {
-  margin-right: 12px;
-  color: #409eff;
-  font-size: 24px;
+  margin-top: 8px;
+  color: #909399;
+  font-size: 12px;
+}
+
+.help-text {
+  display: flex;
+  align-items: center;
+  margin-top: 8px;
+  color: #909399;
+  font-size: 12px;
+}
+
+.help-text .el-icon {
+  margin-right: 4px;
+}
+
+.result-save-config {
+  width: 100%;
+}
+
+.result-save-config .el-checkbox {
+  display: block;
+  margin-bottom: 12px;
+}
+
+.output-category-config {
+  margin-top: 16px;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
 }
 
 .script-details {

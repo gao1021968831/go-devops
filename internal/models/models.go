@@ -38,25 +38,32 @@ type Host struct {
 // 脚本模型
 type Script struct {
 	ID          uint      `json:"id" gorm:"primaryKey"`
-	Name        string    `json:"name" gorm:"not null"`
-	Content     string    `json:"content" gorm:"type:text"`
-	Type        string    `json:"type" gorm:"default:shell"`
-	Description string    `json:"description"`
+	Name        string    `json:"name" gorm:"not null;type:varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"`
+	Content     string    `json:"content" gorm:"type:text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"`
+	Type        string    `json:"type" gorm:"default:shell;type:varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"`
+	Description string    `json:"description" gorm:"type:text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"`
 	CreatedBy   uint      `json:"created_by"`
 	User        User      `json:"user" gorm:"foreignKey:CreatedBy"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
-// 作业模型
+// 作业
 type Job struct {
 	ID          uint      `json:"id" gorm:"primaryKey"`
 	Name        string    `json:"name" gorm:"not null"`
+	Description string    `json:"description"`
 	ScriptID    uint      `json:"script_id"`
 	Script      Script    `json:"script" gorm:"foreignKey:ScriptID"`
-	HostIDs     string    `json:"host_ids"` // JSON数组字符串
-	Status      string    `json:"status" gorm:"default:pending"`
-	IsTemporary bool      `json:"is_temporary" gorm:"default:false"` // 是否为临时作业
+	HostIDs     string    `json:"host_ids" gorm:"type:text"` // JSON数组存储主机ID列表
+	Parameters  string    `json:"parameters" gorm:"type:text"` // 脚本参数
+	Timeout     int       `json:"timeout" gorm:"default:300"` // 超时时间（秒）
+	Status      string    `json:"status" gorm:"default:pending"` // 作业状态：pending, running, completed, failed
+	// 文件关联字段
+	InputFileIDs    string `json:"input_file_ids" gorm:"type:text"`     // 输入文件ID列表（JSON数组）
+	SaveOutput      bool   `json:"save_output" gorm:"default:false"`    // 是否保存输出为文件
+	SaveError       bool   `json:"save_error" gorm:"default:false"`     // 是否保存错误日志为文件
+	OutputCategory  string `json:"output_category" gorm:"default:script_output"` // 输出文件分类
 	CreatedBy   uint      `json:"created_by"`
 	User        User      `json:"user" gorm:"foreignKey:CreatedBy"`
 	CreatedAt   time.Time `json:"created_at"`
@@ -83,6 +90,11 @@ type JobExecution struct {
 	ScriptContent string `json:"script_content" gorm:"type:text"`
 	ScriptType    string `json:"script_type"`
 	IsQuickExec   bool   `json:"is_quick_exec" gorm:"default:false"` // 标记是否为快速执行
+	// 文件关联字段
+	OutputFileID  *uint `json:"output_file_id"`                            // 输出文件ID
+	OutputFile    *File `json:"output_file" gorm:"foreignKey:OutputFileID"` // 输出文件
+	ErrorFileID   *uint `json:"error_file_id"`                             // 错误日志文件ID
+	ErrorFile     *File `json:"error_file" gorm:"foreignKey:ErrorFileID"`   // 错误日志文件
 	CreatedAt     time.Time  `json:"created_at"`
 	UpdatedAt     time.Time  `json:"updated_at"`
 }
@@ -289,4 +301,108 @@ type UserActivity struct {
 	Status      string    `json:"status" gorm:"default:success"` // success, failed
 	Details     string    `json:"details" gorm:"type:text"`      // 详细信息或错误信息
 	CreatedAt   time.Time `json:"created_at"`
+}
+
+// 文件模型
+type File struct {
+	ID          uint      `json:"id" gorm:"primaryKey"`
+	Name        string    `json:"name" gorm:"not null"`                    // 文件名
+	OriginalName string   `json:"original_name" gorm:"not null"`           // 原始文件名
+	Path        string    `json:"path" gorm:"not null"`                    // 文件存储路径
+	Size        int64     `json:"size"`                                    // 文件大小（字节）
+	MimeType    string    `json:"mime_type"`                               // MIME类型
+	MD5Hash     string    `json:"md5_hash" gorm:"index"`                   // MD5哈希值
+	Category    string    `json:"category" gorm:"default:general"`         // 文件分类：script, config, package, general
+	Description string    `json:"description"`                             // 文件描述
+	IsPublic    bool      `json:"is_public" gorm:"default:false"`          // 是否公开
+	UploadedBy  uint      `json:"uploaded_by"`                             // 上传者ID
+	User        User      `json:"user" gorm:"foreignKey:UploadedBy"`       // 上传者信息
+	DownloadCount int     `json:"download_count" gorm:"default:0"`         // 下载次数
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+// 文件分发记录
+type FileDistribution struct {
+	ID          uint      `json:"id" gorm:"primaryKey"`
+	FileID      uint      `json:"file_id"`                                 // 文件ID
+	File        File      `json:"file" gorm:"foreignKey:FileID"`           // 文件信息
+	HostIDs     string    `json:"host_ids" gorm:"type:text"`               // 目标主机ID列表（JSON数组）
+	TargetPath  string    `json:"target_path" gorm:"not null"`             // 目标路径
+	Status      string    `json:"status" gorm:"default:pending"`           // 分发状态：pending, running, completed, failed
+	Progress    int       `json:"progress" gorm:"default:0"`               // 分发进度（0-100）
+	StartTime   *time.Time `json:"start_time"`                             // 开始时间
+	EndTime     *time.Time `json:"end_time"`                               // 结束时间
+	CreatedBy   uint      `json:"created_by"`                              // 创建者ID
+	User        User      `json:"user" gorm:"foreignKey:CreatedBy"`        // 创建者信息
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+// 文件分发详情
+type FileDistributionDetail struct {
+	ID             uint               `json:"id" gorm:"primaryKey"`
+	DistributionID uint               `json:"distribution_id"`                    // 分发记录ID
+	Distribution   FileDistribution   `json:"distribution" gorm:"foreignKey:DistributionID"`
+	HostID         uint               `json:"host_id"`                            // 主机ID
+	Host           Host               `json:"host" gorm:"foreignKey:HostID"`      // 主机信息
+	Status         string             `json:"status" gorm:"default:pending"`      // 状态：pending, running, completed, failed
+	Output         string             `json:"output" gorm:"type:text"`            // 执行输出
+	Error          string             `json:"error" gorm:"type:text"`             // 错误信息
+	StartTime      *time.Time         `json:"start_time"`                         // 开始时间
+	EndTime        *time.Time         `json:"end_time"`                           // 结束时间
+	CreatedAt      time.Time          `json:"created_at"`
+	UpdatedAt      time.Time          `json:"updated_at"`
+}
+
+// 文件上传请求
+type FileUploadRequest struct {
+	Category    string `form:"category"`
+	Description string `form:"description"`
+	IsPublic    bool   `form:"is_public"`
+}
+
+// 文件分发请求
+type FileDistributionRequest struct {
+	FileID     uint   `json:"file_id" binding:"required"`
+	HostIDs    []uint `json:"host_ids" binding:"required"`
+	TargetPath string `json:"target_path" binding:"required"`
+}
+
+// 文件更新请求
+type FileUpdateRequest struct {
+	Name        string `json:"name"`
+	Category    string `json:"category"`
+	Description string `json:"description"`
+	IsPublic    bool   `json:"is_public"`
+}
+
+// 作业创建/更新请求（扩展支持文件关联）
+type JobRequest struct {
+	Name           string `json:"name" binding:"required"`
+	Description    string `json:"description"`
+	ScriptID       uint   `json:"script_id" binding:"required"`
+	HostIDs        []uint `json:"host_ids" binding:"required"`
+	Parameters     string `json:"parameters"`
+	Timeout        int    `json:"timeout"`
+	InputFileIDs   []uint `json:"input_file_ids"`   // 输入文件ID列表
+	SaveOutput     bool   `json:"save_output"`      // 是否保存输出为文件
+	SaveError      bool   `json:"save_error"`       // 是否保存错误日志为文件
+	OutputCategory string `json:"output_category"`  // 输出文件分类
+}
+
+// 脚本创建/更新请求
+type ScriptRequest struct {
+	Name        string `json:"name" binding:"required"`
+	Description string `json:"description"`
+	Content     string `json:"content" binding:"required"`
+	Type        string `json:"type" binding:"required"`
+}
+
+// 脚本执行结果文件保存请求
+type SaveExecutionResultRequest struct {
+	ExecutionID    uint   `json:"execution_id" binding:"required"`
+	SaveOutput     bool   `json:"save_output"`
+	SaveError      bool   `json:"save_error"`
+	OutputCategory string `json:"output_category"`
 }

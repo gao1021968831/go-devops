@@ -1,8 +1,13 @@
 package handlers
 
 import (
+	"encoding/csv"
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
+	"time"
 
 	"go-devops/internal/models"
 
@@ -189,4 +194,158 @@ func (h *JobCRUDHandler) DeleteJob(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "作业删除成功"})
+}
+
+// BatchDeleteJobs 批量删除作业
+func (h *JobCRUDHandler) BatchDeleteJobs(c *gin.Context) {
+	var request struct {
+		IDs []uint `json:"ids" binding:"required,min=1"`
+	}
+	
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数错误"})
+		return
+	}
+
+	userID := c.GetUint("user_id")
+	userRole := c.GetString("role")
+
+	// 查询要删除的作业
+	var jobs []models.Job
+	if err := h.db.Where("id IN ?", request.IDs).Find(&jobs).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询作业失败"})
+		return
+	}
+
+	// 检查权限和运行状态
+	var deletableIDs []uint
+	var skippedCount int
+	var runningCount int
+	
+	for _, job := range jobs {
+		// 检查权限
+		if job.CreatedBy != userID && userRole != "admin" {
+			skippedCount++
+			continue
+		}
+		
+		// 检查是否有正在运行的执行
+		var execCount int64
+		h.db.Model(&models.JobExecution{}).Where("job_id = ? AND status = ?", job.ID, "running").Count(&execCount)
+		if execCount > 0 {
+			runningCount++
+			continue
+		}
+		
+		deletableIDs = append(deletableIDs, job.ID)
+	}
+
+	if len(deletableIDs) == 0 {
+		message := "没有可删除的作业"
+		if skippedCount > 0 {
+			message += fmt.Sprintf("（%d个无权限）", skippedCount)
+		}
+		if runningCount > 0 {
+			message += fmt.Sprintf("（%d个正在运行）", runningCount)
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": message})
+		return
+	}
+
+	// 删除相关的执行记录
+	h.db.Where("job_id IN ?", deletableIDs).Delete(&models.JobExecution{})
+
+	// 执行批量删除
+	if err := h.db.Where("id IN ?", deletableIDs).Delete(&models.Job{}).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "批量删除作业失败"})
+		return
+	}
+
+	message := fmt.Sprintf("成功删除 %d 个作业", len(deletableIDs))
+	if skippedCount > 0 {
+		message += fmt.Sprintf("，跳过 %d 个无权限作业", skippedCount)
+	}
+	if runningCount > 0 {
+		message += fmt.Sprintf("，跳过 %d 个正在运行的作业", runningCount)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": message,
+		"deleted_count": len(deletableIDs),
+		"skipped_count": skippedCount,
+		"running_count": runningCount,
+	})
+}
+
+// ExportJobs 导出作业为CSV
+func (h *JobCRUDHandler) ExportJobs(c *gin.Context) {
+	idsParam := c.Query("ids")
+	var jobs []models.Job
+	
+	if idsParam != "" {
+		// 导出指定作业
+		var ids []uint
+		if err := json.Unmarshal([]byte(idsParam), &ids); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "作业ID参数格式错误"})
+			return
+		}
+		
+		if err := h.db.Preload("Script").Preload("User").Where("id IN ?", ids).Find(&jobs).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "查询作业失败"})
+			return
+		}
+	} else {
+		// 导出所有作业
+		if err := h.db.Preload("Script").Preload("User").Find(&jobs).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "查询作业失败"})
+			return
+		}
+	}
+
+	// 设置响应头
+	filename := fmt.Sprintf("jobs_export_%s.csv", time.Now().Format("20060102_150405"))
+	c.Header("Content-Type", "text/csv; charset=utf-8")
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+
+	// 创建CSV写入器
+	writer := csv.NewWriter(c.Writer)
+	defer writer.Flush()
+
+	// 写入BOM以支持中文
+	c.Writer.Write([]byte{0xEF, 0xBB, 0xBF})
+
+	// 写入CSV头部
+	headers := []string{"ID", "作业名称", "描述", "脚本ID", "脚本名称", "脚本类型", "主机ID列表", "参数", "超时时间", "状态", "创建者", "创建时间", "更新时间"}
+	if err := writer.Write(headers); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "写入CSV头部失败"})
+		return
+	}
+
+	// 写入数据行
+	for _, job := range jobs {
+		// 处理参数中的换行符和引号
+		parameters := strings.ReplaceAll(job.Parameters, "\n", "\\n")
+		parameters = strings.ReplaceAll(parameters, "\r", "\\r")
+		
+		record := []string{
+			fmt.Sprintf("%d", job.ID),
+			job.Name,
+			job.Description,
+			fmt.Sprintf("%d", job.ScriptID),
+			job.Script.Name,
+			job.Script.Type,
+			job.HostIDs,
+			parameters,
+			fmt.Sprintf("%d", job.Timeout),
+			job.Status,
+			job.User.Username,
+			job.CreatedAt.Format("2006-01-02 15:04:05"),
+			job.UpdatedAt.Format("2006-01-02 15:04:05"),
+		}
+		
+		if err := writer.Write(record); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "写入CSV数据失败"})
+			return
+		}
+	}
 }

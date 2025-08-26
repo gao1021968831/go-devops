@@ -1,0 +1,72 @@
+=========================================
+系统健康检查报告 - Tue Aug 26 14:55:17 CST 2025
+=========================================
+📊 系统信息:
+主机名: harbor
+操作系统: Rocky Linux 8.9 (Green Obsidian)
+内核版本: 4.18.0-513.5.1.el8_9.x86_64
+系统运行时间: up 5 days, 4 hours, 48 minutes
+
+💻 CPU使用情况:
+CPU使用率: 0.0%
+
+🧠 内存使用情况:
+Mem:           13Gi       3.2Gi       7.8Gi       137Mi       2.3Gi       9.6Gi
+Swap:            0B          0B          0B
+内存使用率: 24.2%
+
+💾 磁盘使用情况:
+/dev/mapper/rl-root   37G   26G   12G  70% /
+/dev/nvme0n1p1      1014M  200M  815M  20% /boot
+/dev/mapper/rl-home   19G  162M   18G   1% /home
+
+磁盘使用率超过80%的分区:
+⚠️  Filesystem           Size  Used Avail Use% Mounted on
+
+🌐 网络连接状态:
+活跃连接数: 6
+监听端口数: 43
+
+⚖️  系统负载:
+负载平均值: 0.01, 0.01, 0.00
+
+🔄 进程信息:
+总进程数: 207
+运行中进程: 1
+僵尸进程: 0
+
+📈 资源占用TOP5进程:
+CPU占用TOP5:
+/usr/libexec/qemu-kvm 0.8%
+/usr/libexec/platform-python 0.1%
+/usr/lib/systemd/systemd 0.0%
+[kthreadd]           0.0%
+[rcu_gp]             0.0%
+
+内存占用TOP5:
+/usr/libexec/qemu-kvm 20.9%
+/usr/lib/systemd/systemd-journald 0.9%
+/usr/libexec/mysqld  0.7%
+/usr/bin/dockerd     0.6%
+/usr/bin/containerd  0.4%
+
+🔧 重要服务状态:
+✅ sshd: 运行中
+✅ docker: 运行中
+
+📋 最近的系统错误 (最近10条):
+-- Logs begin at Thu 2025-08-21 10:06:35 CST, end at Tue 2025-08-26 14:55:17 CST. --
+Aug 26 14:36:05 harbor rsyslogd[2542]: cannot connect to 1.13.248.79:514: Connection refused [v8.2102.0-15.el8_10.1 try https://www.rsyslog.com/e/2027 ]
+Aug 26 14:38:05 harbor rsyslogd[2542]: cannot connect to 1.13.248.79:514: Connection refused [v8.2102.0-15.el8_10.1 try https://www.rsyslog.com/e/2027 ]
+Aug 26 14:40:04 harbor rsyslogd[2542]: cannot connect to 1.13.248.79:514: Connection refused [v8.2102.0-15.el8_10.1 try https://www.rsyslog.com/e/2027 ]
+Aug 26 14:42:01 harbor rsyslogd[2542]: cannot connect to 1.13.248.79:514: Connection refused [v8.2102.0-15.el8_10.1 try https://www.rsyslog.com/e/2027 ]
+Aug 26 14:44:04 harbor rsyslogd[2542]: cannot connect to 1.13.248.79:514: Connection refused [v8.2102.0-15.el8_10.1 try https://www.rsyslog.com/e/2027 ]
+Aug 26 14:46:05 harbor rsyslogd[2542]: cannot connect to 1.13.248.79:514: Connection refused [v8.2102.0-15.el8_10.1 try https://www.rsyslog.com/e/2027 ]
+Aug 26 14:48:05 harbor rsyslogd[2542]: cannot connect to 1.13.248.79:514: Connection refused [v8.2102.0-15.el8_10.1 try https://www.rsyslog.com/e/2027 ]
+Aug 26 14:50:04 harbor rsyslogd[2542]: cannot connect to 1.13.248.79:514: Connection refused [v8.2102.0-15.el8_10.1 try https://www.rsyslog.com/e/2027 ]
+Aug 26 14:52:01 harbor rsyslogd[2542]: cannot connect to 1.13.248.79:514: Connection refused [v8.2102.0-15.el8_10.1 try https://www.rsyslog.com/e/2027 ]
+Aug 26 14:54:05 harbor rsyslogd[2542]: cannot connect to 1.13.248.79:514: Connection refused [v8.2102.0-15.el8_10.1 try https://www.rsyslog.com/e/2027 ]
+
+=========================================
+检查完成 - Tue Aug 26 14:55:18 CST 2025
+=========================================

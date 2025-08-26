@@ -25,6 +25,30 @@
           <el-icon><Refresh /></el-icon>
           刷新
         </el-button>
+        <el-dropdown trigger="click" :disabled="selectedScripts.length === 0">
+          <el-button :disabled="selectedScripts.length === 0">
+            <el-icon><Operation /></el-icon>
+            批量操作 <el-icon class="el-icon--right"><arrow-down /></el-icon>
+          </el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item @click="exportSelected">
+                <el-icon><Download /></el-icon>
+                导出选中脚本
+              </el-dropdown-item>
+              <el-dropdown-item @click="deleteSelected" class="danger-item">
+                <el-icon><Delete /></el-icon>
+                删除选中脚本
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+        <el-button type="success" @click="showImportDialog">
+          <el-icon><Upload /></el-icon>
+          批量导入
+        </el-button>
+        <el-button type="primary" @click="exportAll">导出全部脚本</el-button>
+        <el-button type="success" @click="downloadTemplate">下载导入模板</el-button>
         <el-button type="primary" @click="showCreateDialog">
           <el-icon><Plus /></el-icon>
           新建脚本
@@ -42,7 +66,8 @@
       </el-empty>
     </div>
     
-    <el-table v-else :data="filteredScripts" style="width: 100%" stripe>
+    <el-table v-else :data="filteredScripts" style="width: 100%" stripe @selection-change="handleSelectionChange">
+      <el-table-column type="selection" width="55" />
       <el-table-column prop="name" label="脚本名称" min-width="150">
         <template #default="{ row }">
           <div class="script-name">
@@ -147,6 +172,77 @@
         </div>
       </div>
     </el-dialog>
+
+    <!-- 批量导入对话框 -->
+    <el-dialog
+      v-model="showImportDialogFlag"
+      title="批量导入脚本"
+      width="600px"
+    >
+      <div class="import-section">
+        <el-alert
+          title="导入说明"
+          type="info"
+          :closable="false"
+          show-icon
+        >
+          <p>1. 请使用CSV格式文件，包含以下列：脚本名称、描述、类型、脚本内容</p>
+          <p>2. 脚本类型支持：shell、python2、python3</p>
+          <p>3. 脚本名称不能重复，重复的脚本将跳过导入</p>
+          <p>4. 建议先下载模板文件，按照格式填写数据</p>
+        </el-alert>
+        
+        <div class="upload-section">
+          <el-upload
+            ref="uploadRef"
+            :auto-upload="false"
+            :limit="1"
+            accept=".csv"
+            :on-change="handleFileChange"
+            :file-list="fileList"
+            drag
+          >
+            <el-icon class="el-icon--upload"><upload-filled /></el-icon>
+            <div class="el-upload__text">
+              将CSV文件拖到此处，或<em>点击上传</em>
+            </div>
+            <template #tip>
+              <div class="el-upload__tip">
+                只能上传CSV文件，且不超过10MB
+              </div>
+            </template>
+          </el-upload>
+        </div>
+
+        <div v-if="importResult" class="import-result">
+          <el-alert
+            :title="importResult.message"
+            :type="importResult.success_count > 0 ? 'success' : 'error'"
+            show-icon
+          >
+            <p>总计: {{ importResult.total_count }} 个</p>
+            <p>成功: {{ importResult.success_count }} 个</p>
+            <p>失败: {{ importResult.error_count }} 个</p>
+            <div v-if="importResult.errors && importResult.errors.length > 0">
+              <p>错误详情:</p>
+              <ul>
+                <li v-for="error in importResult.errors" :key="error">{{ error }}</li>
+              </ul>
+            </div>
+          </el-alert>
+        </div>
+      </div>
+
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="showImportDialogFlag = false">取消</el-button>
+          <el-button type="primary" @click="downloadTemplate">下载模板</el-button>
+          <el-button type="success" @click="performImport" :loading="importing" :disabled="!selectedFile">
+            开始导入
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -167,7 +263,12 @@ import {
   More,
   CopyDocument,
   List,
-  Refresh
+  Refresh,
+  Operation,
+  Download,
+  Upload,
+  UploadFilled,
+  ArrowDown
 } from '@element-plus/icons-vue'
 
 const router = useRouter()
@@ -182,6 +283,12 @@ const showFormDialog = ref(false)
 const showViewDialog = ref(false)
 const editingScript = ref(null)
 const viewingScript = ref(null)
+const selectedScripts = ref([])
+const showImportDialogFlag = ref(false)
+const importing = ref(false)
+const selectedFile = ref(null)
+const fileList = ref([])
+const importResult = ref(null)
 
 // 计算属性
 const filteredScripts = computed(() => {
@@ -222,7 +329,7 @@ const loadScripts = async () => {
   loading.value = true
   try {
     const response = await api.get('/api/v1/scripts')
-    scripts.value = response.data
+    scripts.value = response.data.scripts || []
   } catch (error) {
     ElMessage.error('加载脚本列表失败')
   } finally {
@@ -232,6 +339,102 @@ const loadScripts = async () => {
 
 const refreshScripts = () => {
   loadScripts()
+}
+
+// 批量操作相关方法
+const handleSelectionChange = (selection) => {
+  selectedScripts.value = selection
+}
+
+const handleBatchCommand = (command) => {
+  if (command === 'delete') {
+    batchDeleteScripts()
+  } else if (command === 'export') {
+    exportSelectedScripts()
+  }
+}
+
+const batchDeleteScripts = async () => {
+  if (selectedScripts.value.length === 0) {
+    ElMessage.warning('请先选择要删除的脚本')
+    return
+  }
+
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除选中的 ${selectedScripts.value.length} 个脚本吗？`,
+      '批量删除确认',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+    
+    const ids = selectedScripts.value.map(script => script.id)
+    const response = await api.post('/api/v1/scripts/batch/delete', { ids })
+    
+    ElMessage.success(response.data.message)
+    selectedScripts.value = []
+    loadScripts()
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('批量删除失败')
+    }
+  }
+}
+
+const exportSelectedScripts = async () => {
+  if (selectedScripts.value.length === 0) {
+    ElMessage.warning('请先选择要导出的脚本')
+    return
+  }
+
+  try {
+    const ids = selectedScripts.value.map(script => script.id)
+    const response = await api.get('/api/v1/scripts/export', {
+      params: { ids: JSON.stringify(ids) },
+      responseType: 'blob'
+    })
+    
+    // 创建下载链接
+    const blob = new Blob([response.data], { type: 'text/csv' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `scripts_export_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    
+    ElMessage.success(`成功导出 ${selectedScripts.value.length} 个脚本`)
+  } catch (error) {
+    ElMessage.error('导出脚本失败')
+  }
+}
+
+const exportAllScripts = async () => {
+  try {
+    const response = await api.get('/api/v1/scripts/export', {
+      responseType: 'blob'
+    })
+    
+    // 创建下载链接
+    const blob = new Blob([response.data], { type: 'text/csv' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `scripts_export_all_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    
+    ElMessage.success('成功导出所有脚本')
+  } catch (error) {
+    ElMessage.error('导出脚本失败')
+  }
 }
 
 // 脚本操作方法
@@ -321,6 +524,80 @@ const handleCommand = (command, script) => {
       break
   }
 }
+
+// 导入相关方法
+const showImportDialog = () => {
+  showImportDialogFlag.value = true
+  importResult.value = null
+  selectedFile.value = null
+  fileList.value = []
+}
+
+const handleFileChange = (file) => {
+  selectedFile.value = file.raw
+  fileList.value = [file]
+}
+
+const downloadTemplate = async () => {
+  try {
+    const response = await api.get('/api/v1/scripts/import/template', {
+      responseType: 'blob'
+    })
+    
+    // 创建下载链接
+    const blob = new Blob([response.data], { type: 'text/csv' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'scripts_import_template.csv'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    
+    ElMessage.success('模板下载成功')
+  } catch (error) {
+    ElMessage.error('下载模板失败')
+  }
+}
+
+const performImport = async () => {
+  if (!selectedFile.value) {
+    ElMessage.warning('请先选择要导入的CSV文件')
+    return
+  }
+
+  importing.value = true
+  importResult.value = null
+
+  try {
+    const formData = new FormData()
+    formData.append('file', selectedFile.value)
+
+    const response = await api.post('/api/v1/scripts/batch/import', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+
+    importResult.value = response.data
+    ElMessage.success(response.data.message)
+    
+    // 如果有成功导入的脚本，刷新列表
+    if (response.data.success_count > 0) {
+      loadScripts()
+    }
+  } catch (error) {
+    ElMessage.error('导入失败：' + (error.response?.data?.error || '未知错误'))
+  } finally {
+    importing.value = false
+  }
+}
+
+// 修复方法名映射
+const exportSelected = () => exportSelectedScripts()
+const deleteSelected = () => batchDeleteScripts()
+const exportAll = () => exportAllScripts()
 
 // 生命周期
 onMounted(() => {

@@ -3,6 +3,14 @@
     <div class="page-header">
       <h2>执行记录</h2>
       <div class="header-actions">
+        <el-button 
+          v-if="userRole === 'admin' && selectedExecutions.length > 0"
+          type="danger"
+          @click="batchDeleteExecutions"
+        >
+          <el-icon><Delete /></el-icon>
+          批量删除 ({{ selectedExecutions.length }})
+        </el-button>
         <el-button @click="refreshExecutions">
           <el-icon><Refresh /></el-icon>
           刷新
@@ -54,7 +62,14 @@
         stripe
         style="width: 100%"
         @row-click="viewExecutionDetail"
+        @selection-change="handleSelectionChange"
       >
+        <el-table-column 
+          v-if="userRole === 'admin'"
+          type="selection" 
+          width="55"
+          :selectable="() => true"
+        />
         <el-table-column prop="id" label="执行ID" width="80" />
         <el-table-column label="作业信息" min-width="200">
           <template #default="{ row }">
@@ -109,7 +124,7 @@
             {{ getDuration(row) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="220" fixed="right">
+        <el-table-column label="操作" width="280" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
               <el-button
@@ -134,6 +149,14 @@
                 @click.stop="redoJobExecution(row)"
               >
                 重新执行
+              </el-button>
+              <el-button
+                v-if="userRole === 'admin'"
+                size="small"
+                type="danger"
+                @click.stop="deleteExecution(row)"
+              >
+                删除
               </el-button>
             </div>
           </template>
@@ -160,18 +183,49 @@
       :prefill-data="quickExecutePrefillData"
       @executed="handleQuickExecuted"
     />
+
+    <!-- 删除确认对话框 -->
+    <el-dialog
+      v-model="showDeleteDialog"
+      title="确认删除"
+      width="400px"
+      :before-close="handleDeleteDialogClose"
+    >
+      <div class="delete-content">
+        <el-icon class="warning-icon" color="#E6A23C" size="24"><Warning /></el-icon>
+        <div class="delete-text">
+          <p>确定要删除这条执行记录吗？</p>
+          <p class="warning-text">此操作不可撤销，将同时删除关联的输出文件。</p>
+          <div class="execution-info">
+            <p><strong>执行ID:</strong> {{ executionToDelete?.id }}</p>
+            <p><strong>作业名称:</strong> {{ executionToDelete?.job_name || executionToDelete?.job?.name || '未知作业' }}</p>
+            <p><strong>主机:</strong> {{ executionToDelete?.host?.name || '未知主机' }}</p>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="showDeleteDialog = false">取消</el-button>
+          <el-button type="danger" @click="confirmDelete" :loading="deleteLoading">
+            确认删除
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { useUserStore } from '@/stores/user'
 import api from '@/utils/api'
 import QuickExecute from '@/components/QuickExecute.vue'
 
 const router = useRouter()
 const route = useRoute()
+const userStore = useUserStore()
 
 const executions = ref([])
 const loading = ref(false)
@@ -185,6 +239,15 @@ const pageSize = ref(20)
 const totalExecutions = ref(0)
 const showQuickExecute = ref(false)
 const quickExecutePrefillData = ref(null)
+
+// 删除相关状态
+const showDeleteDialog = ref(false)
+const executionToDelete = ref(null)
+const deleteLoading = ref(false)
+const selectedExecutions = ref([])
+
+// 获取用户角色
+const userRole = computed(() => userStore.user?.role || '')
 
 const filteredExecutions = computed(() => {
   let filtered = executions.value
@@ -377,6 +440,80 @@ const handleCurrentChange = (newPage) => {
   loadExecutions()
 }
 
+// 删除执行记录
+const deleteExecution = (execution) => {
+  executionToDelete.value = execution
+  showDeleteDialog.value = true
+}
+
+// 确认删除
+const confirmDelete = async () => {
+  if (!executionToDelete.value) return
+  
+  deleteLoading.value = true
+  try {
+    await api.delete(`/api/v1/admin/executions/${executionToDelete.value.id}`)
+    
+    ElMessage.success('执行记录删除成功')
+    showDeleteDialog.value = false
+    
+    // 刷新列表
+    loadExecutions()
+  } catch (error) {
+    ElMessage.error('删除失败: ' + (error.response?.data?.error || error.message))
+  } finally {
+    deleteLoading.value = false
+  }
+}
+
+// 关闭删除对话框
+const handleDeleteDialogClose = () => {
+  if (!deleteLoading.value) {
+    showDeleteDialog.value = false
+    executionToDelete.value = null
+  }
+}
+
+// 处理表格选择变化
+const handleSelectionChange = (selection) => {
+  selectedExecutions.value = selection
+}
+
+// 批量删除执行记录
+const batchDeleteExecutions = async () => {
+  if (selectedExecutions.value.length === 0) {
+    ElMessage.warning('请先选择要删除的执行记录')
+    return
+  }
+
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除选中的 ${selectedExecutions.value.length} 条执行记录吗？此操作不可撤销，将同时删除关联的输出文件。`,
+      '批量删除确认',
+      {
+        confirmButtonText: '确认删除',
+        cancelButtonText: '取消',
+        type: 'warning',
+        confirmButtonClass: 'el-button--danger'
+      }
+    )
+
+    const ids = selectedExecutions.value.map(execution => execution.id)
+    
+    await api.post('/api/v1/admin/executions/batch/delete', { ids })
+    
+    ElMessage.success(`成功删除 ${ids.length} 条执行记录`)
+    
+    // 清空选择并刷新列表
+    selectedExecutions.value = []
+    loadExecutions()
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('批量删除失败: ' + (error.response?.data?.error || error.message))
+    }
+  }
+}
+
 // 监听搜索和过滤条件变化
 watch([searchText, statusFilter, scriptTypeFilter, showQuickExecOnly], () => {
   currentPage.value = 1
@@ -466,5 +603,57 @@ onMounted(() => {
 
 :deep(.el-table tbody tr:hover) {
   background-color: #f5f7fa;
+}
+
+/* 删除对话框样式 */
+.delete-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.warning-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.delete-text {
+  flex: 1;
+}
+
+.delete-text p {
+  margin: 0 0 12px 0;
+  color: #606266;
+  line-height: 1.5;
+}
+
+.warning-text {
+  color: #E6A23C !important;
+  font-weight: 500;
+}
+
+.execution-info {
+  background: #f8f9fa;
+  border-radius: 6px;
+  padding: 12px;
+  margin-top: 16px;
+  border-left: 3px solid #409EFF;
+}
+
+.execution-info p {
+  margin: 4px 0 !important;
+  font-size: 13px;
+  color: #303133;
+}
+
+.execution-info strong {
+  color: #409EFF;
+  font-weight: 600;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
 }
 </style>

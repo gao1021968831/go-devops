@@ -21,12 +21,17 @@ type ExecutionService struct {
 func NewExecutionService(db *gorm.DB) *ExecutionService {
 	return &ExecutionService{
 		db:       db,
-		executor: executor.NewScriptExecutor(),
+		executor: executor.NewScriptExecutor(db),
 	}
 }
 
 // ExecuteScriptOnHost 在指定主机上执行脚本的统一方法
 func (s *ExecutionService) ExecuteScriptOnHost(execution *models.JobExecution, script *models.Script, host *models.Host) {
+	s.ExecuteScriptOnHostWithOptions(execution, script, host, nil, false, false, "")
+}
+
+// ExecuteScriptOnHostWithOptions 在指定主机上执行脚本（支持文件参数和结果保存）
+func (s *ExecutionService) ExecuteScriptOnHostWithOptions(execution *models.JobExecution, script *models.Script, host *models.Host, inputFiles []models.File, saveOutput, saveError bool, outputCategory string) {
 	logger.Logger.WithFields(map[string]interface{}{
 		"execution_id": execution.ID,
 		"host_id":      host.ID,
@@ -46,8 +51,8 @@ func (s *ExecutionService) ExecuteScriptOnHost(execution *models.JobExecution, s
 		return
 	}
 
-	// 执行脚本
-	output, errorOutput, err := s.executor.ExecuteScript(host, script)
+	// 执行脚本（传递输入文件）
+	output, errorOutput, err := s.executor.ExecuteScriptWithFiles(host, script, inputFiles)
 
 	// 执行时长会在前端计算显示
 	// 处理执行结果
@@ -61,6 +66,26 @@ func (s *ExecutionService) ExecuteScriptOnHost(execution *models.JobExecution, s
 		execution.Output = output
 		if errorOutput != "" {
 			execution.Error = errorOutput
+		}
+	}
+
+	// 结束时间
+	endTime := time.Now()
+	execution.EndTime = &endTime
+
+	// 保存执行结果为文件（如果需要）
+	if (saveOutput && output != "") || (saveError && errorOutput != "") {
+		category := outputCategory
+		if category == "" {
+			category = "script_output"
+		}
+		
+		err := s.executor.SaveExecutionResultAsFile(execution, output, errorOutput, category, execution.ExecutedBy)
+		if err != nil {
+			logger.Logger.WithFields(map[string]interface{}{
+				"execution_id": execution.ID,
+				"error":        err.Error(),
+			}).Error("保存执行结果文件失败")
 		}
 	}
 
@@ -90,6 +115,11 @@ func (s *ExecutionService) handleExecutionError(execution *models.JobExecution, 
 		"execution_id": execution.ID,
 		"error":        errorMsg,
 	}).Error("脚本执行失败")
+}
+
+// SaveExecutionResultAsFile 保存执行结果为文件
+func (s *ExecutionService) SaveExecutionResultAsFile(execution *models.JobExecution, output, errorOutput string, category string, userID uint) error {
+	return s.executor.SaveExecutionResultAsFile(execution, output, errorOutput, category, userID)
 }
 
 // CreateJobExecution 创建作业执行记录

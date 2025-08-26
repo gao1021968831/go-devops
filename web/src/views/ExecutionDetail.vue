@@ -9,6 +9,17 @@
         <h2>执行详情</h2>
       </div>
       <div class="header-actions">
+        <div class="auto-refresh-control">
+          <el-switch
+            v-model="autoRefresh"
+            active-text="自动刷新"
+            inactive-text=""
+            @change="toggleAutoRefresh"
+          />
+          <span v-if="autoRefresh && countdown > 0" class="countdown">
+            {{ countdown }}s后刷新
+          </span>
+        </div>
         <el-button @click="refreshDetail">
           <el-icon><Refresh /></el-icon>
           刷新
@@ -106,6 +117,15 @@
                 <el-icon><DocumentCopy /></el-icon>
                 复制输出
               </el-button>
+              <el-button 
+                size="small" 
+                type="primary" 
+                @click="showSaveResultDialog = true"
+                v-if="execution.output || execution.error"
+              >
+                <el-icon><Download /></el-icon>
+                保存为文件
+              </el-button>
             </div>
           </div>
         </template>
@@ -179,13 +199,64 @@
     <div v-if="loading" class="loading-container">
       <el-skeleton :rows="8" animated />
     </div>
+
+    <!-- 保存结果为文件对话框 -->
+    <el-dialog
+      v-model="showSaveResultDialog"
+      title="保存执行结果为文件"
+      width="500px"
+      :close-on-click-modal="false"
+    >
+      <el-form :model="saveResultForm" label-width="100px">
+        <el-form-item label="保存内容">
+          <el-checkbox-group v-model="saveResultForm.saveTypes">
+            <el-checkbox 
+              label="output" 
+              :disabled="!execution.output"
+            >
+              执行输出 {{ execution.output ? `(${execution.output.length} 字符)` : '(无内容)' }}
+            </el-checkbox>
+            <el-checkbox 
+              label="error" 
+              :disabled="!execution.error"
+            >
+              错误日志 {{ execution.error ? `(${execution.error.length} 字符)` : '(无内容)' }}
+            </el-checkbox>
+          </el-checkbox-group>
+        </el-form-item>
+        
+        <el-form-item label="文件分类">
+          <el-select v-model="saveResultForm.outputCategory" placeholder="选择文件分类">
+            <el-option label="脚本输出" value="script_output" />
+            <el-option label="日志文件" value="log" />
+            <el-option label="报告文件" value="report" />
+            <el-option label="通用文件" value="general" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="showSaveResultDialog = false">取消</el-button>
+          <el-button 
+            type="primary" 
+            @click="saveExecutionResult"
+            :loading="savingResult"
+            :disabled="saveResultForm.saveTypes.length === 0"
+          >
+            保存文件
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { ArrowLeft, Refresh, DocumentCopy, Download } from '@element-plus/icons-vue'
 import api from '@/utils/api'
 
 const route = useRoute()
@@ -194,6 +265,20 @@ const router = useRouter()
 const execution = ref(null)
 const relatedExecutions = ref([])
 const loading = ref(false)
+const showSaveResultDialog = ref(false)
+const savingResult = ref(false)
+
+// 自动刷新相关
+const autoRefresh = ref(false)
+const countdown = ref(0)
+const refreshInterval = ref(null)
+const countdownInterval = ref(null)
+const REFRESH_SECONDS = 5
+
+const saveResultForm = ref({
+  saveTypes: [],
+  outputCategory: 'script_output'
+})
 
 const getStatusType = (status) => {
   const typeMap = {
@@ -257,6 +342,12 @@ const loadExecutionDetail = async (executionId) => {
       const relatedResponse = await api.get(`/api/v1/jobs/${execution.value.job_id}/executions`)
       relatedExecutions.value = relatedResponse.data
     }
+    
+    // 如果执行状态是运行中，默认开启自动刷新
+    if (execution.value.status === 'running' && !autoRefresh.value) {
+      autoRefresh.value = true
+      startAutoRefresh()
+    }
   } catch (error) {
     ElMessage.error('加载执行详情失败')
   } finally {
@@ -266,6 +357,49 @@ const loadExecutionDetail = async (executionId) => {
 
 const refreshDetail = () => {
   loadExecutionDetail(route.params.id)
+}
+
+// 自动刷新功能
+const startAutoRefresh = () => {
+  if (refreshInterval.value) return
+  
+  countdown.value = REFRESH_SECONDS
+  
+  // 启动倒计时
+  countdownInterval.value = setInterval(() => {
+    countdown.value--
+    if (countdown.value <= 0) {
+      refreshDetail()
+      countdown.value = REFRESH_SECONDS
+    }
+  }, 1000)
+}
+
+const stopAutoRefresh = () => {
+  if (refreshInterval.value) {
+    clearInterval(refreshInterval.value)
+    refreshInterval.value = null
+  }
+  if (countdownInterval.value) {
+    clearInterval(countdownInterval.value)
+    countdownInterval.value = null
+  }
+  countdown.value = 0
+}
+
+const toggleAutoRefresh = (enabled) => {
+  if (enabled) {
+    // 如果执行状态是运行中，启动自动刷新
+    if (execution.value?.status === 'running') {
+      startAutoRefresh()
+    } else {
+      // 如果执行已完成，提示用户
+      ElMessage.info('当前执行已完成，无需自动刷新')
+      autoRefresh.value = false
+    }
+  } else {
+    stopAutoRefresh()
+  }
 }
 
 const goBack = () => {
@@ -291,6 +425,42 @@ const copyError = async () => {
     ElMessage.success('错误信息已复制到剪贴板')
   } catch (error) {
     ElMessage.error('复制失败')
+  }
+}
+
+const saveExecutionResult = async () => {
+  if (saveResultForm.value.saveTypes.length === 0) {
+    ElMessage.warning('请选择要保存的内容')
+    return
+  }
+
+  savingResult.value = true
+  try {
+    const requestData = {
+      execution_id: execution.value.id,
+      save_output: saveResultForm.value.saveTypes.includes('output'),
+      save_error: saveResultForm.value.saveTypes.includes('error'),
+      output_category: saveResultForm.value.outputCategory
+    }
+
+    await api.post('/api/v1/job-executions/save-result', requestData)
+    ElMessage.success('执行结果已保存为文件')
+    showSaveResultDialog.value = false
+    
+    // 重新加载执行详情以获取文件链接
+    await loadExecutionDetail(execution.value.id)
+  } catch (error) {
+    ElMessage.error('保存文件失败: ' + (error.response?.data?.error || error.message))
+  } finally {
+    savingResult.value = false
+  }
+}
+
+// 重置保存表单
+const resetSaveForm = () => {
+  saveResultForm.value = {
+    saveTypes: [],
+    outputCategory: 'script_output'
   }
 }
 
@@ -330,17 +500,56 @@ const redoJobExecution = async () => {
   }
 }
 
+// 监听执行状态变化，自动管理刷新
+watch(() => execution.value?.status, (newStatus, oldStatus) => {
+  if (autoRefresh.value) {
+    if (newStatus === 'running') {
+      // 如果变为运行中，确保自动刷新启动
+      if (!countdownInterval.value) {
+        startAutoRefresh()
+      }
+    } else if (oldStatus === 'running' && (newStatus === 'completed' || newStatus === 'failed')) {
+      // 如果从运行中变为完成或失败，停止自动刷新
+      stopAutoRefresh()
+      autoRefresh.value = false
+      ElMessage.success(`执行${newStatus === 'completed' ? '完成' : '失败'}，已停止自动刷新`)
+    }
+  }
+})
+
 // 监听路由参数变化
 watch(() => route.params.id, (newId) => {
   if (newId) {
+    // 切换执行记录时停止自动刷新
+    stopAutoRefresh()
+    autoRefresh.value = false
     loadExecutionDetail(newId)
   }
 }, { immediate: true })
+
+// 监听对话框显示状态，重置表单
+watch(showSaveResultDialog, (visible) => {
+  if (visible) {
+    resetSaveForm()
+    // 根据执行结果自动选择保存类型
+    if (execution.value?.output) {
+      saveResultForm.value.saveTypes.push('output')
+    }
+    if (execution.value?.error) {
+      saveResultForm.value.saveTypes.push('error')
+    }
+  }
+})
 
 onMounted(() => {
   if (route.params.id) {
     loadExecutionDetail(route.params.id)
   }
+})
+
+// 组件卸载时清理定时器
+onUnmounted(() => {
+  stopAutoRefresh()
 })
 </script>
 
@@ -371,7 +580,25 @@ onMounted(() => {
 
 .header-actions {
   display: flex;
+  align-items: center;
   gap: 12px;
+}
+
+.auto-refresh-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+}
+
+.countdown {
+  font-size: 12px;
+  color: #409eff;
+  font-weight: 500;
+  min-width: 60px;
 }
 
 .execution-content {

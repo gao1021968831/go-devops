@@ -93,6 +93,38 @@
         <HostSelector v-model="form.hostIds" />
       </el-form-item>
       
+      <el-form-item label="输入文件">
+        <div class="input-files-section">
+          <div class="selected-files" v-if="form.inputFiles.length > 0">
+            <div 
+              v-for="file in form.inputFiles" 
+              :key="file.id" 
+              class="file-tag"
+            >
+              <el-icon><Document /></el-icon>
+              <span class="file-name">{{ file.name }}</span>
+              <span class="file-size">({{ formatFileSize(file.size) }})</span>
+              <el-icon 
+                class="remove-file" 
+                @click="removeInputFile(file.id)"
+              >
+                <Close />
+              </el-icon>
+            </div>
+          </div>
+          <el-button 
+            type="primary" 
+            plain 
+            size="small" 
+            @click="handleSelectFiles"
+          >
+            <el-icon><Files /></el-icon>
+            选择输入文件
+          </el-button>
+          <span class="file-help-text">可选择多个文件作为脚本执行的输入参数</span>
+        </div>
+      </el-form-item>
+      
       <el-form-item label="备注" prop="description">
         <el-input
           v-model="form.description"
@@ -118,6 +150,14 @@
         </el-button>
       </div>
     </template>
+    
+    <!-- 文件选择器 -->
+    <FileSelector
+      ref="fileSelectorRef"
+      v-model="form.inputFiles"
+      :multiple="true"
+      title="选择输入文件"
+    />
   </el-dialog>
 </template>
 
@@ -128,6 +168,7 @@ import { useRouter } from 'vue-router'
 import api from '@/utils/api'
 import HostSelector from './HostSelector.vue'
 import CodeEditor from './CodeEditor.vue'
+import FileSelector from './FileSelector.vue'
 import {
   Tools,
   Document,
@@ -158,6 +199,8 @@ const executing = ref(false)
 const availableScripts = ref([])
 const scriptEditable = ref(false)
 const originalScriptContent = ref('')
+const fileSelectorRef = ref()
+const availableFiles = ref([])
 
 const form = ref({
   name: '',
@@ -166,6 +209,7 @@ const form = ref({
   scriptType: 'shell',
   scriptContent: '',
   hostIds: [],
+  inputFiles: [],
   description: ''
 })
 
@@ -248,7 +292,7 @@ const handleLanguageChange = (newLanguage) => {
 const loadAvailableScripts = async () => {
   try {
     const response = await api.get('/api/v1/scripts')
-    availableScripts.value = response.data.scripts || []
+    availableScripts.value = response.data || []
   } catch (error) {
     console.error('加载脚本列表失败:', error)
   }
@@ -323,6 +367,27 @@ const saveScriptEdit = async () => {
   }
 }
 
+// 选择输入文件
+const handleSelectFiles = () => {
+  if (fileSelectorRef.value) {
+    fileSelectorRef.value.openFileDialog()
+  }
+}
+
+// 移除输入文件
+const removeInputFile = (fileId) => {
+  form.value.inputFiles = form.value.inputFiles.filter(file => file.id !== fileId)
+}
+
+// 格式化文件大小
+const formatFileSize = (bytes) => {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
+
 
 const handleExecute = async () => {
   if (!formRef.value) return
@@ -337,6 +402,7 @@ const handleExecute = async () => {
       script_content: form.value.scriptContent,
       script_type: form.value.scriptType,
       host_ids: form.value.hostIds,
+      input_file_ids: form.value.inputFiles.map(f => f.id),
       description: form.value.description
     })
     
@@ -373,6 +439,7 @@ const handleClosed = () => {
     scriptType: 'shell',
     scriptContent: '',
     hostIds: [],
+    inputFiles: [],
     description: ''
   }
   scriptEditable.value = false
@@ -399,6 +466,7 @@ watch(() => props.prefillData, (newData) => {
       scriptType: newData.scriptType || 'shell',
       scriptContent: newData.scriptContent || '',
       hostIds: newData.hostIds || [],
+      inputFiles: newData.inputFiles || [],
       description: newData.description || ''
     }
   }
@@ -495,5 +563,55 @@ watch(() => props.prefillData, (newData) => {
 
 .script-textarea :deep(.el-textarea__inner):focus {
   box-shadow: none;
+}
+
+.input-files-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.selected-files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.file-tag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 16px;
+  font-size: 13px;
+  color: #0369a1;
+}
+
+.file-name {
+  font-weight: 500;
+}
+
+.file-size {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.remove-file {
+  cursor: pointer;
+  color: #ef4444;
+  font-size: 14px;
+  margin-left: 4px;
+}
+
+.remove-file:hover {
+  color: #dc2626;
+}
+
+.file-help-text {
+  font-size: 12px;
+  color: #64748b;
+  margin-left: 8px;
 }
 </style>

@@ -2,9 +2,13 @@ package ssh
 
 import (
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
 	"time"
 
 	"golang.org/x/crypto/ssh"
+	"github.com/pkg/sftp"
 	"go-devops/internal/logger"
 	"go-devops/internal/models"
 )
@@ -192,6 +196,67 @@ func ExecuteScript(host *models.Host, script *models.Script) (string, string, er
 	return output, stderr, nil
 }
 
+// ExecuteScriptWithFiles 执行脚本并传递输入文件
+func ExecuteScriptWithFiles(host *models.Host, script *models.Script, inputFiles []models.File) (string, string, error) {
+	client, err := NewSSHClient(host)
+	if err != nil {
+		return "", "", fmt.Errorf("建立SSH连接失败: %v", err)
+	}
+	defer client.Close()
+
+	logger.Infof("开始在主机 %s 上执行脚本: %s，输入文件数量: %d", host.IP, script.Name, len(inputFiles))
+
+	// 上传输入文件到远程主机
+	for i, file := range inputFiles {
+		logger.Infof("准备上传第 %d/%d 个文件: %s (ID: %d, 路径: %s, 大小: %d)", 
+			i+1, len(inputFiles), file.OriginalName, file.ID, file.Path, file.Size)
+		
+		// 检查本地文件是否存在
+		if _, err := os.Stat(file.Path); os.IsNotExist(err) {
+			logger.Errorf("本地文件不存在: %s", file.Path)
+			return "", "", fmt.Errorf("本地文件不存在: %s", file.Path)
+		}
+		
+		err := client.UploadFile(file.Path, file.OriginalName)
+		if err != nil {
+			logger.Errorf("上传文件失败: %s (路径: %s), 错误: %v", file.OriginalName, file.Path, err)
+			return "", "", fmt.Errorf("上传文件失败: %s", file.OriginalName)
+		}
+		logger.Infof("文件上传成功: %s -> %s@%s:%s", file.Path, host.Username, host.IP, file.OriginalName)
+	}
+
+	var command string
+	switch script.Type {
+	case "shell", "bash":
+		command = script.Content
+	case "python2":
+		command = fmt.Sprintf("cat > temp_py_script.py << 'EOF'\n%s\nEOF\nif command -v python2 >/dev/null 2>&1; then\n    python2 temp_py_script.py 2>/dev/null || /usr/bin/python2 temp_py_script.py 2>/dev/null || python temp_py_script.py\nelse\n    python temp_py_script.py\nfi\nrm -f temp_py_script.py", script.Content)
+	case "python3":
+		command = fmt.Sprintf("cat > temp_py_script.py << 'EOF'\n%s\nEOF\nif command -v python3 >/dev/null 2>&1; then\n    python3 temp_py_script.py 2>/dev/null || /usr/bin/python3 temp_py_script.py 2>/dev/null || python temp_py_script.py\nelse\n    python temp_py_script.py\nfi\nrm -f temp_py_script.py", script.Content)
+	default:
+		command = script.Content
+	}
+
+	output, stderr, err := client.ExecuteCommand(command)
+	
+	// 清理上传的文件和临时脚本文件
+	for _, file := range inputFiles {
+		client.ExecuteCommand(fmt.Sprintf("rm -f %s", file.OriginalName))
+	}
+	// 清理Python临时脚本文件（防止执行失败时未清理）
+	if script.Type == "python2" || script.Type == "python3" {
+		client.ExecuteCommand("rm -f temp_py_script.py")
+	}
+	
+	if err != nil {
+		logger.Errorf("脚本执行失败: %v, 输出: %s", err, stderr)
+		return output, stderr, err
+	}
+
+	logger.Infof("脚本执行成功: %s", script.Name)
+	return output, stderr, nil
+}
+
 // GetSystemInfo 获取系统信息
 func GetSystemInfo(host *models.Host) (map[string]interface{}, error) {
 	client, err := NewSSHClient(host)
@@ -223,4 +288,130 @@ func GetSystemInfo(host *models.Host) (map[string]interface{}, error) {
 	}
 
 	return info, nil
+}
+
+// UploadFile 上传文件到远程主机
+func (c *SSHClient) UploadFile(localPath, remotePath string) error {
+	// 创建SFTP客户端
+	sftpClient, err := sftp.NewClient(c.client)
+	if err != nil {
+		return fmt.Errorf("创建SFTP客户端失败: %v", err)
+	}
+	defer sftpClient.Close()
+
+	// 打开本地文件
+	localFile, err := os.Open(localPath)
+	if err != nil {
+		return fmt.Errorf("打开本地文件失败: %v", err)
+	}
+	defer localFile.Close()
+
+	// 确保远程目录存在
+	remoteDir := filepath.Dir(remotePath)
+	err = sftpClient.MkdirAll(remoteDir)
+	if err != nil {
+		logger.Warnf("创建远程目录失败: %v", err)
+	}
+
+	// 创建远程文件
+	remoteFile, err := sftpClient.Create(remotePath)
+	if err != nil {
+		return fmt.Errorf("创建远程文件失败: %v", err)
+	}
+	defer remoteFile.Close()
+
+	// 复制文件内容
+	_, err = io.Copy(remoteFile, localFile)
+	if err != nil {
+		return fmt.Errorf("文件传输失败: %v", err)
+	}
+
+	logger.Infof("文件上传成功: %s -> %s@%s:%s", localPath, c.host.Username, c.host.IP, remotePath)
+	return nil
+}
+
+// DownloadFile 从远程主机下载文件
+func (c *SSHClient) DownloadFile(remotePath, localPath string) error {
+	// 创建SFTP客户端
+	sftpClient, err := sftp.NewClient(c.client)
+	if err != nil {
+		return fmt.Errorf("创建SFTP客户端失败: %v", err)
+	}
+	defer sftpClient.Close()
+
+	// 打开远程文件
+	remoteFile, err := sftpClient.Open(remotePath)
+	if err != nil {
+		return fmt.Errorf("打开远程文件失败: %v", err)
+	}
+	defer remoteFile.Close()
+
+	// 确保本地目录存在
+	localDir := filepath.Dir(localPath)
+	err = os.MkdirAll(localDir, 0755)
+	if err != nil {
+		return fmt.Errorf("创建本地目录失败: %v", err)
+	}
+
+	// 创建本地文件
+	localFile, err := os.Create(localPath)
+	if err != nil {
+		return fmt.Errorf("创建本地文件失败: %v", err)
+	}
+	defer localFile.Close()
+
+	// 复制文件内容
+	_, err = io.Copy(localFile, remoteFile)
+	if err != nil {
+		return fmt.Errorf("文件传输失败: %v", err)
+	}
+
+	logger.Infof("文件下载成功: %s@%s:%s -> %s", c.host.Username, c.host.IP, remotePath, localPath)
+	return nil
+}
+
+// FileExists 检查远程文件是否存在
+func (c *SSHClient) FileExists(remotePath string) (bool, error) {
+	sftpClient, err := sftp.NewClient(c.client)
+	if err != nil {
+		return false, fmt.Errorf("创建SFTP客户端失败: %v", err)
+	}
+	defer sftpClient.Close()
+
+	_, err = sftpClient.Stat(remotePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
+// GetFileInfo 获取远程文件信息
+func (c *SSHClient) GetFileInfo(remotePath string) (os.FileInfo, error) {
+	sftpClient, err := sftp.NewClient(c.client)
+	if err != nil {
+		return nil, fmt.Errorf("创建SFTP客户端失败: %v", err)
+	}
+	defer sftpClient.Close()
+
+	return sftpClient.Stat(remotePath)
+}
+
+// RemoveFile 删除远程文件
+func (c *SSHClient) RemoveFile(remotePath string) error {
+	sftpClient, err := sftp.NewClient(c.client)
+	if err != nil {
+		return fmt.Errorf("创建SFTP客户端失败: %v", err)
+	}
+	defer sftpClient.Close()
+
+	err = sftpClient.Remove(remotePath)
+	if err != nil {
+		return fmt.Errorf("删除远程文件失败: %v", err)
+	}
+
+	logger.Infof("删除远程文件成功: %s@%s:%s", c.host.Username, c.host.IP, remotePath)
+	return nil
 }

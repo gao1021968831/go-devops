@@ -1,0 +1,352 @@
+=========================================
+系统健康检查报告 - 2025年 08月 26日 星期二 14:55:17 CST
+=========================================
+📊 系统信息:
+主机名: morning-pc
+操作系统: Kylin V10 SP1
+内核版本: 5.4.18-132-generic
+系统运行时间: up 4 days, 4 hours, 24 minutes
+
+💻 CPU使用情况:
+CPU使用率: 30.8%
+
+🧠 内存使用情况:
+内存使用率: %
+(standard_in) 1: syntax error
+
+💾 磁盘使用情况:
+文件系统                    容量  已用  可用 已用% 挂载点
+udev                        2.2G     0  2.2G    0% /dev
+/dev/mapper/kylin--vg-root   95G   15G   75G   17% /
+/dev/sda1                   2.0G  118M  1.7G    7% /boot
+/dev/mapper/kylin--vg-data   95G  269M   90G    1% /data
+
+磁盘使用率超过80%的分区:
+⚠️  文件系统                    容量  已用  可用 已用% 挂载点
+
+🌐 网络连接状态:
+活跃连接数: 4
+监听端口数: 84
+
+⚖️  系统负载:
+负载平均值: 1.31, 1.24, 1.25
+
+🔄 进程信息:
+总进程数: 390
+运行中进程: 1
+僵尸进程: 3
+
+📈 资源占用TOP5进程:
+CPU占用TOP5:
+/opt/kingsoft/wps-office/office6/wpscloudsvr 96.7%
+/lib/systemd/systemd-udevd 0.5%
+/usr/sbin/antivirus/avserver 0.2%
+/usr/bin/ukui-panel  0.1%
+/opt/sogouimebs/files/bin/sogouImeService-watchdog 0.1%
+
+内存占用TOP5:
+/lib/systemd/systemd-journald 4.5%
+/usr/bin/ukui-panel  3.7%
+/usr/bin/peony-qt-desktop 3.4%
+/usr/lib/xorg/Xorg   3.2%
+/opt/apps/com.cmcc.esm/files/bin/cmcc-esm-ui 2.9%
+
+🔧 重要服务状态:
+✅ sshd: 运行中
+
+📋 最近的系统错误 (最近10条):
+-- Logs begin at Fri 2025-08-15 17:19:10 CST, end at Tue 2025-08-26 14:55:19 CST. --
+8月 25 09:34:34 morning-pc NetworkManager[873]: file src/nm-auth-utils.c: line 253 (<dropped>): should not be reached
+8月 25 11:39:23 morning-pc systemd-coredump[3140683]: Process 3140677 (ukui-notificati) of user 0 dumped core.
+                                                       
+                                                       Stack trace of thread 3140677:
+                                                       #0  0x00007fa06317c29b raise (libc.so.6 + 0x4329b)
+                                                       #1  0x00007fa06315b869 abort (libc.so.6 + 0x22869)
+                                                       #2  0x00007fa0635c7aad _ZNK14QMessageLogger5fatalEPKcz (libQt5Core.so.5 + 0x85aad)
+                                                       #3  0x00007fa063dbb87e _ZN22QGuiApplicationPrivate25createPlatformIntegrationEv (libQt5Gui.so.5 + 0x11f87e)
+                                                       #4  0x00007fa063dbc798 _ZN22QGuiApplicationPrivate21createEventDispatcherEv (libQt5Gui.so.5 + 0x120798)
+                                                       #5  0x00007fa0637cf085 _ZN23QCoreApplicationPrivate4initEv (libQt5Core.so.5 + 0x28d085)
+                                                       #6  0x00007fa063dbe5d3 _ZN22QGuiApplicationPrivate4initEv (libQt5Gui.so.5 + 0x1225d3)
+                                                       #7  0x00007fa0644004bd _ZN19QApplicationPrivate4initEv (libQt5Widgets.so.5 + 0x1714bd)
+                                                       #8  0x00005591eaac7bc6 n/a (ukui-notifications + 0x17bc6)
+                                                       #9  0x00007fa06315d313 __libc_start_main (libc.so.6 + 0x24313)
+                                                       #10 0x00005591eaac82ee n/a (ukui-notifications + 0x182ee)
+                                                       
+                                                       Stack trace of thread 3140681:
+                                                       #0  0x00007fa0632586b5 __clone (libc.so.6 + 0x11f6b5)
+                                                       #1  0x0000000000000005 n/a (n/a + 0x0)
+8月 25 11:39:23 morning-pc systemd-coredump[3140701]: Process 3140685 (ukui-notificati) of user 0 dumped core.
+                                                       
+                                                       Stack trace of thread 3140685:
+                                                       #0  0x00007f318299b29b raise (libc.so.6 + 0x4329b)
+                                                       #1  0x00007f318297a869 abort (libc.so.6 + 0x22869)
+                                                       #2  0x00007f3182de6aad _ZNK14QMessageLogger5fatalEPKcz (libQt5Core.so.5 + 0x85aad)
+                                                       #3  0x00007f31835da87e _ZN22QGuiApplicationPrivate25createPlatformIntegrationEv (libQt5Gui.so.5 + 0x11f87e)
+                                                       #4  0x00007f31835db798 _ZN22QGuiApplicationPrivate21createEventDispatcherEv (libQt5Gui.so.5 + 0x120798)
+                                                       #5  0x00007f3182fee085 _ZN23QCoreApplicationPrivate4initEv (libQt5Core.so.5 + 0x28d085)
+                                                       #6  0x00007f31835dd5d3 _ZN22QGuiApplicationPrivate4initEv (libQt5Gui.so.5 + 0x1225d3)
+                                                       #7  0x00007f3183c1f4bd _ZN19QApplicationPrivate4initEv (libQt5Widgets.so.5 + 0x1714bd)
+                                                       #8  0x0000564f1119dbc6 n/a (ukui-notifications + 0x17bc6)
+                                                       #9  0x00007f318297c313 __libc_start_main (libc.so.6 + 0x24313)
+                                                       #10 0x0000564f1119e2ee n/a (ukui-notifications + 0x182ee)
+                                                       
+                                                       Stack trace of thread 3140694:
+                                                       #0  0x00007f3182a6afef __poll (libc.so.6 + 0x112fef)
+                                                       #1  0x00007f318263536e n/a (libglib-2.0.so.0 + 0x5236e)
+                                                       #2  0x00007f31826354a3 g_main_context_iteration (libglib-2.0.so.0 + 0x524a3)
+                                                       #3  0x00007f318303f565 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt5Core.so.5 + 0x2de565)
+                                                       #4  0x00007f3182fe64db _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt5Core.so.5 + 0x2854db)
+                                                       #5  0x00007f3182e1e775 _ZN7QThread4execEv (libQt5Core.so.5 + 0xbd775)
+                                                       #6  0x00007f31841f499e _ZN17UkuiLog4qtRolling3runEv (libukui-log4qt.so.1 + 0x6d99e)
+                                                       #7  0x00007f3182e1f9c2 n/a (libQt5Core.so.5 + 0xbe9c2)
+                                                       #8  0x00007f3182d46609 start_thread (libpthread.so.0 + 0x8609)
+                                                       #9  0x00007f3182a776c3 __clone (libc.so.6 + 0x11f6c3)
+                                                       
+                                                       Stack trace of thread 3140693:
+                                                       #0  0x00007f3182a6afef __poll (libc.so.6 + 0x112fef)
+                                                       #1  0x00007f318281401d g_socket_condition_timed_wait (libgio-2.0.so.0 + 0xa501d)
+                                                       #2  0x00007f318281508f n/a (libgio-2.0.so.0 + 0xa608f)
+                                                       #3  0x00007f31827eeb4e g_input_stream_read (libgio-2.0.so.0 + 0x7fb4e)
+                                                       #4  0x00007f31827bfe4b n/a (libgio-2.0.so.0 + 0x50e4b)
+                                                       #5  0x00007f31827c11c5 g_buffered_input_stream_fill (libgio-2.0.so.0 + 0x521c5)
+                                                       #6  0x00007f31827c96f9 g_data_input_stream_read_line (libgio-2.0.so.0 + 0x5a6f9)
+                                                       #7  0x00007f3182871145 n/a (libgio-2.0.so.0 + 0x102145)
+                                                       #8  0x00007f3182871d9f n/a (libgio-2.0.so.0 + 0x102d9f)
+                                                       #9  0x00007f3182882fed n/a (libgio-2.0.so.0 + 0x113fed)
+                                                       #10 0x00007f31828835b4 g_bus_get_sync (libgio-2.0.so.0 + 0x1145b4)
+                                                       #11 0x00007f3184229b17 n/a (libdconfsettings.so + 0xab17)
+                                                       #12 0x00007f3184229c00 n/a (libdconfsettings.so + 0xac00)
+                                                       #13 0x00007f318263504e g_main_context_dispatch (libglib-2.0.so.0 + 0x5204e)
+                                                       #14 0x00007f3182635400 n/a (libglib-2.0.so.0 + 0x52400)
+                                                       #15 0x00007f31826354a3 g_main_context_iteration (libglib-2.0.so.0 + 0x524a3)
+                                                       #16 0x00007f318422999d n/a (libdconfsettings.so + 0xa99d)
+                                                       #17 0x00007f318265ead1 n/a (libglib-2.0.so.0 + 0x7bad1)
+                                                       #18 0x00007f3182d46609 start_thread (libpthread.so.0 + 0x8609)
+                                                       #19 0x00007f3182a776c3 __clone (libc.so.6 + 0x11f6c3)
+                                                       
+                                                       Stack trace of thread 3140692:
+                                                       #0  0x00007f3182a6afef __poll (libc.so.6 + 0x112fef)
+                                                       #1  0x00007f318263536e n/a (libglib-2.0.so.0 + 0x5236e)
+                                                       #2  0x00007f31826354a3 g_main_context_iteration (libglib-2.0.so.0 + 0x524a3)
+                                                       #3  0x00007f31826354f1 n/a (libglib-2.0.so.0 + 0x524f1)
+                                                       #4  0x00007f318265ead1 n/a (libglib-2.0.so.0 + 0x7bad1)
+                                                       #5  0x00007f3182d46609 start_thread (libpthread.so.0 + 0x8609)
+                                                       #6  0x00007f3182a776c3 __clone (libc.so.6 + 0x11f6c3)
+8月 25 12:34:44 morning-pc systemd-coredump[3180529]: Process 3180523 (ukui-notificati) of user 0 dumped core.
+                                                       
+                                                       Stack trace of thread 3180523:
+                                                       #0  0x00007f138389529b raise (libc.so.6 + 0x4329b)
+                                                       #1  0x00007f1383874869 abort (libc.so.6 + 0x22869)
+                                                       #2  0x00007f1383ce0aad _ZNK14QMessageLogger5fatalEPKcz (libQt5Core.so.5 + 0x85aad)
+                                                       #3  0x00007f13844d487e _ZN22QGuiApplicationPrivate25createPlatformIntegrationEv (libQt5Gui.so.5 + 0x11f87e)
+                                                       #4  0x00007f13844d5798 _ZN22QGuiApplicationPrivate21createEventDispatcherEv (libQt5Gui.so.5 + 0x120798)
+                                                       #5  0x00007f1383ee8085 _ZN23QCoreApplicationPrivate4initEv (libQt5Core.so.5 + 0x28d085)
+                                                       #6  0x00007f13844d75d3 _ZN22QGuiApplicationPrivate4initEv (libQt5Gui.so.5 + 0x1225d3)
+                                                       #7  0x00007f1384b194bd _ZN19QApplicationPrivate4initEv (libQt5Widgets.so.5 + 0x1714bd)
+                                                       #8  0x00005591b42babc6 n/a (ukui-notifications + 0x17bc6)
+                                                       #9  0x00007f1383876313 __libc_start_main (libc.so.6 + 0x24313)
+                                                       #10 0x00005591b42bb2ee n/a (ukui-notifications + 0x182ee)
+                                                       
+                                                       Stack trace of thread 3180524:
+                                                       #0  0x00007f1383964fef __poll (libc.so.6 + 0x112fef)
+                                                       #1  0x00007f138352f36e n/a (libglib-2.0.so.0 + 0x5236e)
+                                                       #2  0x00007f138352f4a3 g_main_context_iteration (libglib-2.0.so.0 + 0x524a3)
+                                                       #3  0x00007f138352f4f1 n/a (libglib-2.0.so.0 + 0x524f1)
+                                                       #4  0x00007f1383558ad1 n/a (libglib-2.0.so.0 + 0x7bad1)
+                                                       #5  0x00007f1383c40609 start_thread (libpthread.so.0 + 0x8609)
+                                                       #6  0x00007f13839716c3 __clone (libc.so.6 + 0x11f6c3)
+                                                       
+                                                       Stack trace of thread 3180526:
+                                                       #0  0x00007f1383964fef __poll (libc.so.6 + 0x112fef)
+                                                       #1  0x00007f138352f36e n/a (libglib-2.0.so.0 + 0x5236e)
+                                                       #2  0x00007f138352f4a3 g_main_context_iteration (libglib-2.0.so.0 + 0x524a3)
+                                                       #3  0x00007f1383f39565 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt5Core.so.5 + 0x2de565)
+                                                       #4  0x00007f1383ee04db _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt5Core.so.5 + 0x2854db)
+                                                       #5  0x00007f1383d18775 _ZN7QThread4execEv (libQt5Core.so.5 + 0xbd775)
+                                                       #6  0x00007f13850ee99e _ZN17UkuiLog4qtRolling3runEv (libukui-log4qt.so.1 + 0x6d99e)
+                                                       #7  0x00007f1383d199c2 n/a (libQt5Core.so.5 + 0xbe9c2)
+                                                       #8  0x00007f1383c40609 start_thread (libpthread.so.0 + 0x8609)
+                                                       #9  0x00007f13839716c3 __clone (libc.so.6 + 0x11f6c3)
+                                                       
+                                                       Stack trace of thread 3180525:
+                                                       #0  0x00007f1383964fef __poll (libc.so.6 + 0x112fef)
+                                                       #1  0x00007f138352f36e n/a (libglib-2.0.so.0 + 0x5236e)
+                                                       #2  0x00007f138352f6f3 g_main_loop_run (libglib-2.0.so.0 + 0x526f3)
+                                                       #3  0x00007f138377a4e5 g_dbus_connection_send_message_with_reply_sync (libgio-2.0.so.0 + 0x1114e5)
+                                                       #4  0x00007f138377a8df n/a (libgio-2.0.so.0 + 0x1118df)
+                                                       #5  0x00007f138377cbb7 g_dbus_connection_call_sync (libgio-2.0.so.0 + 0x113bb7)
+                                                       #6  0x00007f138377ce56 n/a (libgio-2.0.so.0 + 0x113e56)
+                                                       #7  0x00007f138377d5b4 g_bus_get_sync (libgio-2.0.so.0 + 0x1145b4)
+                                                       #8  0x00007f1385123b17 n/a (libdconfsettings.so + 0xab17)
+                                                       #9  0x00007f1385123c00 n/a (libdconfsettings.so + 0xac00)
+                                                       #10 0x00007f138352f04e g_main_context_dispatch (libglib-2.0.so.0 + 0x5204e)
+                                                       #11 0x00007f138352f400 n/a (libglib-2.0.so.0 + 0x52400)
+                                                       #12 0x00007f138352f4a3 g_main_context_iteration (libglib-2.0.so.0 + 0x524a3)
+                                                       #13 0x00007f138512399d n/a (libdconfsettings.so + 0xa99d)
+                                                       #14 0x00007f1383558ad1 n/a (libglib-2.0.so.0 + 0x7bad1)
+                                                       #15 0x00007f1383c40609 start_thread (libpthread.so.0 + 0x8609)
+                                                       #16 0x00007f13839716c3 __clone (libc.so.6 + 0x11f6c3)
+                                                       
+                                                       Stack trace of thread 3180527:
+                                                       #0  0x00007f13839716b5 __clone (libc.so.6 + 0x11f6b5)
+                                                       #1  0x00007f138377a870 n/a (libgio-2.0.so.0 + 0x111870)
+                                                       #2  0x00007f138377cbb7 g_dbus_connection_call_sync (libgio-2.0.so.0 + 0x113bb7)
+                                                       #3  0x00007f138377ce56 n/a (libgio-2.0.so.0 + 0x113e56)
+                                                       #4  0x00007f138377d5b4 g_bus_get_sync (libgio-2.0.so.0 + 0x1145b4)
+                                                       #5  0x00007f1385123b17 n/a (libdconfsettings.so + 0xab17)
+                                                       #6  0x00007f1385123c00 n/a (libdconfsettings.so + 0xac00)
+                                                       #7  0x00007f138352f04e g_main_context_dispatch (libglib-2.0.so.0 + 0x5204e)
+                                                       #8  0x00007f138352f400 n/a (libglib-2.0.so.0 + 0x52400)
+                                                       #9  0x00007f138352f4a3 g_main_context_iteration (libglib-2.0.so.0 + 0x524a3)
+                                                       #10 0x00007f138512399d n/a (libdconfsettings.so + 0xa99d)
+                                                       #11 0x00007f1383558ad1 n/a (libglib-2.0.so.0 + 0x7bad1)
+                                                       #12 0x00007f1383c40609 start_thread (libpthread.so.0 + 0x8609)
+                                                       #13 0x00007f13839716c3 __clone (libc.so.6 + 0x11f6c3)
+8月 25 12:34:44 morning-pc systemd-coredump[3180551]: Process 3180532 (ukui-notificati) of user 0 dumped core.
+                                                       
+                                                       Stack trace of thread 3180532:
+                                                       #0  0x00007f0b085b329b raise (libc.so.6 + 0x4329b)
+                                                       #1  0x00007f0b08592869 abort (libc.so.6 + 0x22869)
+                                                       #2  0x00007f0b089feaad _ZNK14QMessageLogger5fatalEPKcz (libQt5Core.so.5 + 0x85aad)
+                                                       #3  0x00007f0b091f287e _ZN22QGuiApplicationPrivate25createPlatformIntegrationEv (libQt5Gui.so.5 + 0x11f87e)
+                                                       #4  0x00007f0b091f3798 _ZN22QGuiApplicationPrivate21createEventDispatcherEv (libQt5Gui.so.5 + 0x120798)
+                                                       #5  0x00007f0b08c06085 _ZN23QCoreApplicationPrivate4initEv (libQt5Core.so.5 + 0x28d085)
+                                                       #6  0x00007f0b091f55d3 _ZN22QGuiApplicationPrivate4initEv (libQt5Gui.so.5 + 0x1225d3)
+                                                       #7  0x00007f0b098374bd _ZN19QApplicationPrivate4initEv (libQt5Widgets.so.5 + 0x1714bd)
+                                                       #8  0x000055b3fe8f9bc6 n/a (ukui-notifications + 0x17bc6)
+                                                       #9  0x00007f0b08594313 __libc_start_main (libc.so.6 + 0x24313)
+                                                       #10 0x000055b3fe8fa2ee n/a (ukui-notifications + 0x182ee)
+                                                       
+                                                       Stack trace of thread 3180534:
+                                                       #0  0x00007f0b08682fef __poll (libc.so.6 + 0x112fef)
+                                                       #1  0x00007f0b0824d36e n/a (libglib-2.0.so.0 + 0x5236e)
+                                                       #2  0x00007f0b0824d4a3 g_main_context_iteration (libglib-2.0.so.0 + 0x524a3)
+                                                       #3  0x00007f0b0824d4f1 n/a (libglib-2.0.so.0 + 0x524f1)
+                                                       #4  0x00007f0b08276ad1 n/a (libglib-2.0.so.0 + 0x7bad1)
+                                                       #5  0x00007f0b0895e609 start_thread (libpthread.so.0 + 0x8609)
+                                                       #6  0x00007f0b0868f6c3 __clone (libc.so.6 + 0x11f6c3)
+                                                       
+                                                       Stack trace of thread 3180535:
+                                                       #0  0x00007f0b08682fef __poll (libc.so.6 + 0x112fef)
+                                                       #1  0x00007f0b0824d36e n/a (libglib-2.0.so.0 + 0x5236e)
+                                                       #2  0x00007f0b0824d6f3 g_main_loop_run (libglib-2.0.so.0 + 0x526f3)
+                                                       #3  0x00007f0b084984e5 g_dbus_connection_send_message_with_reply_sync (libgio-2.0.so.0 + 0x1114e5)
+                                                       #4  0x00007f0b084988df n/a (libgio-2.0.so.0 + 0x1118df)
+                                                       #5  0x00007f0b0849abb7 g_dbus_connection_call_sync (libgio-2.0.so.0 + 0x113bb7)
+                                                       #6  0x00007f0b0849ae56 n/a (libgio-2.0.so.0 + 0x113e56)
+                                                       #7  0x00007f0b0849b5b4 g_bus_get_sync (libgio-2.0.so.0 + 0x1145b4)
+                                                       #8  0x00007f0b09e41b17 n/a (libdconfsettings.so + 0xab17)
+                                                       #9  0x00007f0b09e41c00 n/a (libdconfsettings.so + 0xac00)
+                                                       #10 0x00007f0b0824d04e g_main_context_dispatch (libglib-2.0.so.0 + 0x5204e)
+                                                       #11 0x00007f0b0824d400 n/a (libglib-2.0.so.0 + 0x52400)
+                                                       #12 0x00007f0b0824d4a3 g_main_context_iteration (libglib-2.0.so.0 + 0x524a3)
+                                                       #13 0x00007f0b09e4199d n/a (libdconfsettings.so + 0xa99d)
+                                                       #14 0x00007f0b08276ad1 n/a (libglib-2.0.so.0 + 0x7bad1)
+                                                       #15 0x00007f0b0895e609 start_thread (libpthread.so.0 + 0x8609)
+                                                       #16 0x00007f0b0868f6c3 __clone (libc.so.6 + 0x11f6c3)
+                                                       
+                                                       Stack trace of thread 3180536:
+                                                       #0  0x00007f0b08682fef __poll (libc.so.6 + 0x112fef)
+                                                       #1  0x00007f0b0824d36e n/a (libglib-2.0.so.0 + 0x5236e)
+                                                       #2  0x00007f0b0824d4a3 g_main_context_iteration (libglib-2.0.so.0 + 0x524a3)
+                                                       #3  0x00007f0b08c57565 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt5Core.so.5 + 0x2de565)
+                                                       #4  0x00007f0b08bfe4db _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt5Core.so.5 + 0x2854db)
+                                                       #5  0x00007f0b08a36775 _ZN7QThread4execEv (libQt5Core.so.5 + 0xbd775)
+                                                       #6  0x00007f0b09e0c99e _ZN17UkuiLog4qtRolling3runEv (libukui-log4qt.so.1 + 0x6d99e)
+                                                       #7  0x00007f0b08a379c2 n/a (libQt5Core.so.5 + 0xbe9c2)
+                                                       #8  0x00007f0b0895e609 start_thread (libpthread.so.0 + 0x8609)
+                                                       #9  0x00007f0b0868f6c3 __clone (libc.so.6 + 0x11f6c3)
+                                                       
+                                                       Stack trace of thread 3180544:
+                                                       #0  0x00007f0b0868f6b5 __clone (libc.so.6 + 0x11f6b5)
+                                                       #1  0x00007f0b08498870 n/a (libgio-2.0.so.0 + 0x111870)
+                                                       #2  0x00007f0b0849abb7 g_dbus_connection_call_sync (libgio-2.0.so.0 + 0x113bb7)
+                                                       #3  0x00007f0b0849ae56 n/a (libgio-2.0.so.0 + 0x113e56)
+                                                       #4  0x00007f0b0849b5b4 g_bus_get_sync (libgio-2.0.so.0 + 0x1145b4)
+                                                       #5  0x00007f0b09e41b17 n/a (libdconfsettings.so + 0xab17)
+                                                       #6  0x00007f0b09e41c00 n/a (libdconfsettings.so + 0xac00)
+                                                       #7  0x00007f0b0824d04e g_main_context_dispatch (libglib-2.0.so.0 + 0x5204e)
+                                                       #8  0x00007f0b0824d400 n/a (libglib-2.0.so.0 + 0x52400)
+                                                       #9  0x00007f0b0824d4a3 g_main_context_iteration (libglib-2.0.so.0 + 0x524a3)
+                                                       #10 0x00007f0b09e4199d n/a (libdconfsettings.so + 0xa99d)
+                                                       #11 0x00007f0b08276ad1 n/a (libglib-2.0.so.0 + 0x7bad1)
+                                                       #12 0x00007f0b0895e609 start_thread (libpthread.so.0 + 0x8609)
+                                                       #13 0x00007f0b0868f6c3 __clone (libc.so.6 + 0x11f6c3)
+8月 26 01:29:17 morning-pc NetworkManager[873]: file src/nm-auth-utils.c: line 253 (<dropped>): should not be reached
+8月 26 06:27:17 morning-pc NetworkManager[873]: file src/nm-auth-utils.c: line 253 (<dropped>): should not be reached
+8月 26 13:49:55 morning-pc pulseaudio[80768]: [pulseaudio] pid.c: Daemon already running.
+8月 26 14:36:45 morning-pc systemd-coredump[118371]: Process 118366 (ukui-notificati) of user 0 dumped core.
+                                                      
+                                                      Stack trace of thread 118366:
+                                                      #0  0x00007fe0d84c829b raise (libc.so.6 + 0x4329b)
+                                                      #1  0x00007fe0d84a7869 abort (libc.so.6 + 0x22869)
+                                                      #2  0x00007fe0d8913aad _ZNK14QMessageLogger5fatalEPKcz (libQt5Core.so.5 + 0x85aad)
+                                                      #3  0x00007fe0d910787e _ZN22QGuiApplicationPrivate25createPlatformIntegrationEv (libQt5Gui.so.5 + 0x11f87e)
+                                                      #4  0x00007fe0d9108798 _ZN22QGuiApplicationPrivate21createEventDispatcherEv (libQt5Gui.so.5 + 0x120798)
+                                                      #5  0x00007fe0d8b1b085 _ZN23QCoreApplicationPrivate4initEv (libQt5Core.so.5 + 0x28d085)
+                                                      #6  0x00007fe0d910a5d3 _ZN22QGuiApplicationPrivate4initEv (libQt5Gui.so.5 + 0x1225d3)
+                                                      #7  0x00007fe0d974c4bd _ZN19QApplicationPrivate4initEv (libQt5Widgets.so.5 + 0x1714bd)
+                                                      #8  0x0000561ccb22bbc6 n/a (ukui-notifications + 0x17bc6)
+                                                      #9  0x00007fe0d84a9313 __libc_start_main (libc.so.6 + 0x24313)
+                                                      #10 0x0000561ccb22c2ee n/a (ukui-notifications + 0x182ee)
+                                                      
+                                                      Stack trace of thread 118369:
+                                                      #0  0x00007fe0d85a46b5 __clone (libc.so.6 + 0x11f6b5)
+                                                      #1  0x0000000000000005 n/a (n/a + 0x0)
+8月 26 14:36:45 morning-pc systemd-coredump[118418]: Process 118386 (ukui-notificati) of user 0 dumped core.
+                                                      
+                                                      Stack trace of thread 118386:
+                                                      #0  0x00007f9bb7a5e29b raise (libc.so.6 + 0x4329b)
+                                                      #1  0x00007f9bb7a3d869 abort (libc.so.6 + 0x22869)
+                                                      #2  0x00007f9bb7ea9aad _ZNK14QMessageLogger5fatalEPKcz (libQt5Core.so.5 + 0x85aad)
+                                                      #3  0x00007f9bb869d87e _ZN22QGuiApplicationPrivate25createPlatformIntegrationEv (libQt5Gui.so.5 + 0x11f87e)
+                                                      #4  0x00007f9bb869e798 _ZN22QGuiApplicationPrivate21createEventDispatcherEv (libQt5Gui.so.5 + 0x120798)
+                                                      #5  0x00007f9bb80b1085 _ZN23QCoreApplicationPrivate4initEv (libQt5Core.so.5 + 0x28d085)
+                                                      #6  0x00007f9bb86a05d3 _ZN22QGuiApplicationPrivate4initEv (libQt5Gui.so.5 + 0x1225d3)
+                                                      #7  0x00007f9bb8ce24bd _ZN19QApplicationPrivate4initEv (libQt5Widgets.so.5 + 0x1714bd)
+                                                      #8  0x0000557bf7acdbc6 n/a (ukui-notifications + 0x17bc6)
+                                                      #9  0x00007f9bb7a3f313 __libc_start_main (libc.so.6 + 0x24313)
+                                                      #10 0x0000557bf7ace2ee n/a (ukui-notifications + 0x182ee)
+                                                      
+                                                      Stack trace of thread 118392:
+                                                      #0  0x00007f9bb7b2dfef __poll (libc.so.6 + 0x112fef)
+                                                      #1  0x00007f9bb76f836e n/a (libglib-2.0.so.0 + 0x5236e)
+                                                      #2  0x00007f9bb76f84a3 g_main_context_iteration (libglib-2.0.so.0 + 0x524a3)
+                                                      #3  0x00007f9bb76f84f1 n/a (libglib-2.0.so.0 + 0x524f1)
+                                                      #4  0x00007f9bb7721ad1 n/a (libglib-2.0.so.0 + 0x7bad1)
+                                                      #5  0x00007f9bb7e09609 start_thread (libpthread.so.0 + 0x8609)
+                                                      #6  0x00007f9bb7b3a6c3 __clone (libc.so.6 + 0x11f6c3)
+                                                      
+                                                      Stack trace of thread 118393:
+                                                      #0  0x00007f9bb7b2dfef __poll (libc.so.6 + 0x112fef)
+                                                      #1  0x00007f9bb76f836e n/a (libglib-2.0.so.0 + 0x5236e)
+                                                      #2  0x00007f9bb76f84a3 g_main_context_iteration (libglib-2.0.so.0 + 0x524a3)
+                                                      #3  0x00007f9bb92ec99d n/a (libdconfsettings.so + 0xa99d)
+                                                      #4  0x00007f9bb7721ad1 n/a (libglib-2.0.so.0 + 0x7bad1)
+                                                      #5  0x00007f9bb7e09609 start_thread (libpthread.so.0 + 0x8609)
+                                                      #6  0x00007f9bb7b3a6c3 __clone (libc.so.6 + 0x11f6c3)
+                                                      
+                                                      Stack trace of thread 118394:
+                                                      #0  0x00007f9bb7b2dfef __poll (libc.so.6 + 0x112fef)
+                                                      #1  0x00007f9bb76f836e n/a (libglib-2.0.so.0 + 0x5236e)
+                                                      #2  0x00007f9bb76f84a3 g_main_context_iteration (libglib-2.0.so.0 + 0x524a3)
+                                                      #3  0x00007f9bb8102565 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt5Core.so.5 + 0x2de565)
+                                                      #4  0x00007f9bb80a94db _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt5Core.so.5 + 0x2854db)
+                                                      #5  0x00007f9bb7ee1775 _ZN7QThread4execEv (libQt5Core.so.5 + 0xbd775)
+                                                      #6  0x00007f9bb92b799e _ZN17UkuiLog4qtRolling3runEv (libukui-log4qt.so.1 + 0x6d99e)
+                                                      #7  0x00007f9bb7ee29c2 n/a (libQt5Core.so.5 + 0xbe9c2)
+                                                      #8  0x00007f9bb7e09609 start_thread (libpthread.so.0 + 0x8609)
+                                                      #9  0x00007f9bb7b3a6c3 __clone (libc.so.6 + 0x11f6c3)
+                                                      
+                                                      Stack trace of thread 118400:
+                                                      #0  0x00007f9bb7b2dfef __poll (libc.so.6 + 0x112fef)
+                                                      #1  0x00007f9bb76f836e n/a (libglib-2.0.so.0 + 0x5236e)
+                                                      #2  0x00007f9bb76f86f3 g_main_loop_run (libglib-2.0.so.0 + 0x526f3)
+                                                      #3  0x00007f9bb795223a n/a (libgio-2.0.so.0 + 0x12023a)
+                                                      #4  0x00007f9bb7721ad1 n/a (libglib-2.0.so.0 + 0x7bad1)
+                                                      #5  0x00007f9bb7e09609 start_thread (libpthread.so.0 + 0x8609)
+                                                      #6  0x00007f9bb7b3a6c3 __clone (libc.so.6 + 0x11f6c3)
+
+=========================================
+检查完成 - 2025年 08月 26日 星期二 14:55:20 CST
+=========================================

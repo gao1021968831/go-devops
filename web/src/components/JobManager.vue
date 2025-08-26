@@ -24,6 +24,28 @@
           <el-icon><Refresh /></el-icon>
           刷新
         </el-button>
+        <el-dropdown trigger="click" @command="handleBatchCommand" :disabled="selectedJobs.length === 0">
+          <el-button :disabled="selectedJobs.length === 0">
+            <el-icon><Operation /></el-icon>
+            批量操作 <el-icon class="el-icon--right"><arrow-down /></el-icon>
+          </el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="export">
+                <el-icon><Download /></el-icon>
+                导出选中
+              </el-dropdown-item>
+              <el-dropdown-item command="delete" class="danger-item">
+                <el-icon><Delete /></el-icon>
+                删除选中
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+        <el-button @click="exportAllJobs">
+          <el-icon><Download /></el-icon>
+          导出全部
+        </el-button>
       </div>
     </div>
 
@@ -34,7 +56,8 @@
       </el-empty>
     </div>
 
-    <el-table v-else :data="filteredJobs" style="width: 100%" stripe>
+    <el-table v-else :data="filteredJobs" style="width: 100%" stripe @selection-change="handleSelectionChange">
+      <el-table-column type="selection" width="55" />
       <el-table-column prop="name" label="作业名称" min-width="150">
         <template #default="{ row }">
           <div class="job-name">
@@ -150,7 +173,10 @@ import {
   More,
   Edit,
   CopyDocument,
-  Delete
+  Delete,
+  Operation,
+  Download,
+  ArrowDown
 } from '@element-plus/icons-vue'
 
 const router = useRouter()
@@ -163,6 +189,7 @@ const loading = ref(false)
 const showFormDialog = ref(false)
 const editingJob = ref(null)
 const selectedScript = ref(null)
+const selectedJobs = ref([])
 
 // 计算属性
 const filteredJobs = computed(() => {
@@ -238,6 +265,102 @@ const refreshJobs = () => {
 const refreshExecutions = () => {
   // 刷新执行记录，如果当前在执行记录页面
   loadJobs()
+}
+
+// 批量操作相关方法
+const handleSelectionChange = (selection) => {
+  selectedJobs.value = selection
+}
+
+const handleBatchCommand = (command) => {
+  if (command === 'delete') {
+    batchDeleteJobs()
+  } else if (command === 'export') {
+    exportSelectedJobs()
+  }
+}
+
+const batchDeleteJobs = async () => {
+  if (selectedJobs.value.length === 0) {
+    ElMessage.warning('请先选择要删除的作业')
+    return
+  }
+
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除选中的 ${selectedJobs.value.length} 个作业吗？`,
+      '批量删除确认',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+    
+    const ids = selectedJobs.value.map(job => job.id)
+    const response = await api.post('/api/v1/jobs/batch/delete', { ids })
+    
+    ElMessage.success(response.data.message)
+    selectedJobs.value = []
+    loadJobs()
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('批量删除失败')
+    }
+  }
+}
+
+const exportSelectedJobs = async () => {
+  if (selectedJobs.value.length === 0) {
+    ElMessage.warning('请先选择要导出的作业')
+    return
+  }
+
+  try {
+    const ids = selectedJobs.value.map(job => job.id)
+    const response = await api.get('/api/v1/jobs/export', {
+      params: { ids: JSON.stringify(ids) },
+      responseType: 'blob'
+    })
+    
+    // 创建下载链接
+    const blob = new Blob([response.data], { type: 'text/csv' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `jobs_export_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    
+    ElMessage.success(`成功导出 ${selectedJobs.value.length} 个作业`)
+  } catch (error) {
+    ElMessage.error('导出作业失败')
+  }
+}
+
+const exportAllJobs = async () => {
+  try {
+    const response = await api.get('/api/v1/jobs/export', {
+      responseType: 'blob'
+    })
+    
+    // 创建下载链接
+    const blob = new Blob([response.data], { type: 'text/csv' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `jobs_export_all_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    
+    ElMessage.success('成功导出所有作业')
+  } catch (error) {
+    ElMessage.error('导出作业失败')
+  }
 }
 
 // 作业操作方法

@@ -1,0 +1,28 @@
+{
+  "app_name": "web-service",
+  "version": "v1.2.3",
+  "environment": "production",
+  "port": 8080,
+  "database": {
+    "host": "db.example.com",
+    "port": 3306,
+    "name": "webapp_prod"
+  },
+  "redis": {
+    "host": "redis.example.com",
+    "port": 6379
+  },
+  "replicas": 3,
+  "resources": {
+    "cpu": "500m",
+    "memory": "512Mi"
+  },
+  "health_check": {
+    "path": "/health",
+    "interval": 30
+  },
+  "backup": {
+    "enabled": true,
+    "schedule": "0 2 * * *"
+  }
+}
